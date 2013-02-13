@@ -17,8 +17,15 @@
 #include <avr/interrupt.h>
 #include "display.h"
 
+void write_vfd_iv6(uint8_t digit, uint8_t segments);
+void write_vfd_iv17(uint8_t digit, uint16_t segments);
+void write_vfd_iv18(uint8_t digit, uint8_t segments);
+
 void write_vfd_8bit(uint8_t data);
 void clear_display(void);
+
+// see font-16seg.c
+uint16_t calculate_segments_16(uint8_t character);
 
 // see font-7seg.c
 uint8_t calculate_segments_7(uint8_t character);
@@ -131,9 +138,58 @@ void set_blink(bool on)
 	if (!blink) display_on = 1;
 }
 
-void write_vfd_iv18(uint8_t digit, uint8_t segments);
+// display multiplexing routine for 4 digits: run once every 1 ms
+void display_multiplex_iv17(void)
+{
+	clear_display();
+	switch (multiplex_counter) {
+		case 0:
+			write_vfd_iv17(0, calculate_segments_16(display_on ? data[0] : ' '));
+			break;
+		case 1:
+			write_vfd_iv17(1, calculate_segments_16(display_on ? data[1] : ' '));
+			break;
+		case 2:
+			write_vfd_iv17(2, calculate_segments_16(display_on ? data[2] : ' '));
+			break;
+		case 3:
+			write_vfd_iv17(3, calculate_segments_16(display_on ? data[3] : ' '));
+			break;
+	}
+	multiplex_counter++;
+	// g_brightness == 1 thru 10
+	if (multiplex_counter == (4 + (18 - (g_brightness-1)*2))) multiplex_counter = 0;
+}
 
-void display_multiplex(void)
+// display multiplexing routine for IV6 shield: run once every 2ms
+void display_multiplex_iv6(void)
+{
+	clear_display();
+	switch (multiplex_counter) {
+		case 0:
+			write_vfd_iv6(0, calculate_segments_7(display_on ? data[0] : ' '));
+			break;
+		case 1:
+			write_vfd_iv6(1, calculate_segments_7(display_on ? data[1] : ' '));
+			break;
+		case 2:
+			write_vfd_iv6(2, calculate_segments_7(display_on ? data[2] : ' '));
+			break;
+		case 3:
+			write_vfd_iv6(3, calculate_segments_7(display_on ? data[3] : ' '));
+			break;
+		case 4:
+			write_vfd_iv6(4, calculate_segments_7(display_on ? data[4] : ' '));
+			break;
+		case 5:
+			write_vfd_iv6(5, calculate_segments_7(display_on ? data[5] : ' '));
+			break;
+	}
+	multiplex_counter++;
+	if (multiplex_counter == 6) multiplex_counter = 0;
+}
+
+void display_multiplex_iv18(void)
 {
 	uint8_t seg = 0;
 	clear_display();
@@ -172,6 +228,26 @@ void display_multiplex(void)
 	}
 	multiplex_counter++;
 	if (multiplex_counter == 9) multiplex_counter = 0;
+}
+
+void display_multiplex(void)
+{
+	switch (shield) {
+		case SHIELD_IV6:
+			display_multiplex_iv6();
+			break;
+		case SHIELD_IV17:
+			display_multiplex_iv17();
+			break;
+		case SHIELD_IV18:
+			display_multiplex_iv18();
+			break;
+		//case SHIELD_IV22:
+		//	display_multiplex_iv22();
+		//	break;
+		default:
+			break;
+	}
 }
 
 void button_timer(void);
@@ -370,6 +446,43 @@ void write_vfd_8bit(uint8_t data)
 		CLOCK_LOW;
   }
 }
+
+// Writes to the HV5812 driver for IV-6
+// HV1~6:   Digit grids, 6 bits
+// HV7~14:  VFD segments, 8 bits
+// HV15~20: NC
+void write_vfd_iv6(uint8_t digit, uint8_t segments)
+{
+	if (dots & (1<<digit))
+		segments |= (1<<7); // DP is at bit 7
+	
+	uint32_t val = (1 << digit) | ((uint32_t)segments << 6);
+	
+	write_vfd_8bit(0); // unused upper byte: for HV518P only
+	write_vfd_8bit(val >> 16);
+	write_vfd_8bit(val >> 8);
+	write_vfd_8bit(val);
+	
+	LATCH_DISABLE;
+	LATCH_ENABLE;	
+}
+
+// Writes to the HV5812 driver for IV-17
+// HV1~4:  Digit grids, 4 bits
+// HV 5~2: VFD segments, 16-bits
+void write_vfd_iv17(uint8_t digit, uint16_t segments)
+{
+	uint32_t val = (1 << digit) | ((uint32_t)segments << 4);
+
+	write_vfd_8bit(0); // unused upper byte: for HV518P only
+	write_vfd_8bit(val >> 16);
+	write_vfd_8bit(val >> 8);
+	write_vfd_8bit(val);
+
+	LATCH_DISABLE;
+	LATCH_ENABLE;
+}
+
 
 // Writes to the HV5812 driver for IV-6
 // HV1~10:  Digit grids, 10 bits
