@@ -13,6 +13,8 @@
  *
  */
 
+#define DEMO
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
@@ -52,10 +54,9 @@ void init(void)
 	spiX_initslave(SPIMODE);
 	set_brightness(eeprom_read_byte(&b_brightness));
 	display_init(g_brightness);
-	
+	CLKPR = 0b10000000 ; // PSE=1 to enable change
+  CLKPR = 0b00000001 ; // div by 2 to get 8 MHz Clock 	
 	sei(); // enable interrupts
-
-
 	/*
 	// set up interrupt for alarm switch
 	PCICR |= (1 << PCIE2);
@@ -118,7 +119,6 @@ void processSPI(void)
 			break;
 		case 0x83: // set scroll mode
 			c = spi_xfer(0);
-
 			if (c == 0)
 				scroll_mode = ROTATE;
 			else
@@ -194,9 +194,9 @@ void main(void)
 
 #ifdef DEMO
 	set_char_at(' ', 0);
-
 	// test: write alphabet
-	while (1) {
+//	while (1) {
+//	for (int j = 0; j < 5; j++) {
 		for (int i = 'A'; i <= 'Z'+1; i++) {
 			//set_char_at(i, 0);
 			set_char_at(i+1, 1);
@@ -206,18 +206,18 @@ void main(void)
 			set_char_at(i+5, 5);
 			set_char_at(i+6, 6);
 			set_char_at(i+7, 7);
-			set_char_at(i+8, 8);
-			set_char_at(i+9, 9);
-			set_char_at(i+10, 10);
-			set_char_at(i+11, 11);
-			set_char_at(i+12, 12);
-			set_char_at(i+13, 13);
-
-			_delay_ms(250);
+//			set_char_at(i+7, 8);
+//			set_char_at(i+8, 9);
+//			set_char_at(i+9, 10);
+//			set_char_at(i+10, 11);
+//			set_char_at(i+11, 12);
+//			set_char_at(i+12, 13);
+			_delay_ms(200);
 		}
-	}
+//	}
 #endif // DEMO
 
+	_delay_ms(500);
 	// clear display
 	clear_screen();
 		

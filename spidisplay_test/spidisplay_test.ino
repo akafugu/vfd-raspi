@@ -10,9 +10,9 @@ void setup() {
   SPI.begin(); 
   
   /*
-  SPI.transfer(0x83);
+  SPI.transfer(0x83);  // set scroll mode
   delay(1);
-  SPI.transfer(1);
+  SPI.transfer(1);  // scroll mode SCROLL
   delay(1);
   */
 }
@@ -21,11 +21,11 @@ uint8_t letter = 'A';
 
 void set_number(uint16_t val)
 {
-  SPI.transfer(0x88);
+  SPI.transfer(0x88);  // display integer
   delay(1);
-  SPI.transfer(val & 0xFF);
+  SPI.transfer(val & 0xFF);  // first byte
   delay(1);
-  SPI.transfer(val >> 8);
+  SPI.transfer(val >> 8);  // 2nd byte
   delay(1);
 }
 void loop() {
