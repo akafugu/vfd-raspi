@@ -67,6 +67,7 @@
 
 void display_init(uint8_t brightness);
 int get_digits(void);
+int get_shield(void);
 void detect_shield(void);
 
 

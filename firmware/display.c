@@ -17,6 +17,9 @@
 #include <avr/interrupt.h>
 #include "display.h"
 
+#define iv17_support
+#define iv6_support
+
 void write_vfd_iv6(uint8_t digit, uint8_t segments);
 void write_vfd_iv17(uint8_t digit, uint16_t segments);
 void write_vfd_iv18(uint8_t digit, uint8_t segments);
@@ -58,6 +61,11 @@ int get_digits(void)
 	return digits;
 }
 
+int get_shield(void)
+{
+	return shield;
+}
+
 // detect which shield is connected
 void detect_shield(void)
 {
@@ -70,20 +78,26 @@ void detect_shield(void)
 	mpx_count = 8;
 	g_has_dots = true;
 	switch (sig) {
+#ifdef iv17_support
 		case(1):  // IV-17 shield
 			shield = SHIELD_IV17;
 			digits = 4;
 			mpx_count = 4;
 			g_has_dots = false;
 			break;
+#endif
+#ifdef iv6_support
 		case(2):  // IV-6 shield
 			shield = SHIELD_IV6;
 			digits = 6;
 			break;
+#endif
+#ifdef iv22_support
 		case(6):  // IV-22 shield
 			shield = SHIELD_IV22;
 			digits = 4;
 			break;
+#endif
 		case(7):  // IV-18 shield (note: save value as no shield - all bits on)
 			shield = SHIELD_IV18;
 			digits = 8;
@@ -138,7 +152,8 @@ void set_blink(bool on)
 	if (!blink) display_on = 1;
 }
 
-// display multiplexing routine for 4 digits: run once every 1 ms
+#ifdef iv17_support
+// display multiplexing routine for IV17 shield: run once every 1 ms
 void display_multiplex_iv17(void)
 {
 	clear_display();
@@ -160,7 +175,9 @@ void display_multiplex_iv17(void)
 	// g_brightness == 1 thru 10
 	if (multiplex_counter == (4 + (18 - (g_brightness-1)*2))) multiplex_counter = 0;
 }
+#endif
 
+#ifdef iv6_support
 // display multiplexing routine for IV6 shield: run once every 2ms
 void display_multiplex_iv6(void)
 {
@@ -188,6 +205,7 @@ void display_multiplex_iv6(void)
 	multiplex_counter++;
 	if (multiplex_counter == 6) multiplex_counter = 0;
 }
+#endif
 
 void display_multiplex_iv18(void)
 {
@@ -233,18 +251,24 @@ void display_multiplex_iv18(void)
 void display_multiplex(void)
 {
 	switch (shield) {
+#ifdef iv6_support
 		case SHIELD_IV6:
 			display_multiplex_iv6();
 			break;
+#endif
+#ifdef iv17_support
 		case SHIELD_IV17:
 			display_multiplex_iv17();
 			break;
+#endif
 		case SHIELD_IV18:
 			display_multiplex_iv18();
 			break;
-		//case SHIELD_IV22:
-		//	display_multiplex_iv22();
-		//	break;
+#ifdef iv22_support
+		case SHIELD_IV22:
+			display_multiplex_iv22();
+			break;
+#endif
 		default:
 			break;
 	}
@@ -268,12 +292,13 @@ ISR(TIMER0_OVF_vect)
 	}
 	
 	// display multiplex
-	if (++interrupt_counter == 3) {
+	if (++interrupt_counter == mpx_count) {
 		display_multiplex();
 		interrupt_counter = 0;
 	}
 }
 
+/* ***
 // utility functions
 uint8_t print_digits(uint8_t num, uint8_t offset)
 {
@@ -292,19 +317,16 @@ uint8_t print_ch(char ch, uint8_t offset)
 uint8_t print_strn(char* str, uint8_t offset, uint8_t n)
 {
 	uint8_t i = 0;
-
 	while (n-- >= 0) {
 		data[offset++] = str[i++];
 		if (str[i] == '\0') break;
 	}
-
 	return offset;
 }
 
 // set dots based on mode and seconds
-void print_dots(uint8_t mode, uint8_t seconds)
+//void print_dots(uint8_t mode, uint8_t seconds)
 {
-	/*
 	if (g_show_dots) {
 		if (digits == 8 && mode == 0) {
 			sbi(dots, 3);
@@ -318,44 +340,44 @@ void print_dots(uint8_t mode, uint8_t seconds)
 			sbi(dots, 1);
 		}
 	}
-	*/
 }
+***	*/
 
 
-void show_temp(int8_t t, uint8_t f)
-{
-	dots = 0;
-	
-	if (digits == 6) {
-		data[5] = 'C';
-		
-		uint16_t num = f;
-		
-		data[4] = num % 10;
-		num /= 10;
-		data[3] = num % 10;
-		
-		sbi(dots, 2);
-
-		num = t;
-		data[2] = num % 10;
-		num /= 10;
-		data[1] = num % 10;
-		num /= 10;
-		data[0] = ' ';
-	}	
-	else {
-		sbi(dots, 1);		
-		data[3] = 'C';
-		
-		uint16_t num = t*100 + f/10;
-		data[2] = num % 10;
-		num /= 10;
-		data[1] = num % 10;
-		num /= 10;
-		data[0] = num % 10;
-	}
-}
+//void show_temp(int8_t t, uint8_t f)
+//{
+//	dots = 0;
+//	
+//	if (digits == 6) {
+//		data[5] = 'C';
+//		
+//		uint16_t num = f;
+//		
+//		data[4] = num % 10;
+//		num /= 10;
+//		data[3] = num % 10;
+//		
+//		sbi(dots, 2);
+//
+//		num = t;
+//		data[2] = num % 10;
+//		num /= 10;
+//		data[1] = num % 10;
+//		num /= 10;
+//		data[0] = ' ';
+//	}	
+//	else {
+//		sbi(dots, 1);		
+//		data[3] = 'C';
+//		
+//		uint16_t num = t*100 + f/10;
+//		data[2] = num % 10;
+//		num /= 10;
+//		data[1] = num % 10;
+//		num /= 10;
+//		data[0] = num % 10;
+//	}
+//}
 
 void set_string(char* str)
 {
@@ -370,67 +392,67 @@ void set_string(char* str)
 }
 
 // shows setting string
-void show_setting_string(char* short_str, char* long_str, char* value, bool show_setting)
-{
-	data[0] = data[1] = data[2] = data[3] = data[4] = data[5] = data[6] = data[7] = ' ';
+//void show_setting_string(char* short_str, char* long_str, char* value, bool show_setting)
+//{
+//	data[0] = data[1] = data[2] = data[3] = data[4] = data[5] = data[6] = data[7] = ' ';
+//
+//	if (get_digits() == 8) {
+//		set_string(short_str);
+//		print_strn(value, 4, 3);
+//	}
+//	else if (get_digits() == 6) {
+//		if (show_setting)
+//			print_strn(value, 2, 3);
+//		else
+//			set_string(long_str);
+//	}
+//	else {
+//		if (show_setting)
+//			print_strn(value, 0, 3);
+//		else
+//			set_string(short_str);
+//	}
+//}
 
-	if (get_digits() == 8) {
-		set_string(short_str);
-		print_strn(value, 4, 3);
-	}
-	else if (get_digits() == 6) {
-		if (show_setting)
-			print_strn(value, 2, 3);
-		else
-			set_string(long_str);
-	}
-	else {
-		if (show_setting)
-			print_strn(value, 0, 3);
-		else
-			set_string(short_str);
-	}
-}
+//void show_setting_int(char* short_str, char* long_str, int value, bool show_setting)
+//{
+//	data[0] = data[1] = data[2] = data[3] = data[4] = data[5] = data[6] = data[7] = ' ';
+//
+//	if (get_digits() == 8) {
+//		set_string(long_str);
+//		print_digits(value, 6);
+//	}
+//	else if (get_digits() == 6) {
+//		set_string(long_str);
+//		print_digits(value, 4);
+//	}
+//	else {
+//		if (show_setting)
+//			print_digits(value, 2);
+//		else
+//			set_string(short_str);
+//	}
+//}
 
-void show_setting_int(char* short_str, char* long_str, int value, bool show_setting)
-{
-	data[0] = data[1] = data[2] = data[3] = data[4] = data[5] = data[6] = data[7] = ' ';
+//void show_set_time(void)
+//{
+//	if (get_digits() == 8)
+//		set_string("Set Time");
+//	else if (get_digits() == 6)
+//		set_string(" Time ");
+//	else
+//		set_string("Time");
+//}
 
-	if (get_digits() == 8) {
-		set_string(long_str);
-		print_digits(value, 6);
-	}
-	else if (get_digits() == 6) {
-		set_string(long_str);
-		print_digits(value, 4);
-	}
-	else {
-		if (show_setting)
-			print_digits(value, 2);
-		else
-			set_string(short_str);
-	}
-}
-
-void show_set_time(void)
-{
-	if (get_digits() == 8)
-		set_string("Set Time");
-	else if (get_digits() == 6)
-		set_string(" Time ");
-	else
-		set_string("Time");
-}
-
-void show_set_alarm(void)
-{
-	if (get_digits() == 8)
-		set_string("Set Alrm");
-	else if (get_digits() == 6)
-		set_string("Alarm");
-	else
-		set_string("Alrm");
-}
+//void show_set_alarm(void)
+//{
+//	if (get_digits() == 8)
+//		set_string("Set Alrm");
+//	else if (get_digits() == 6)
+//		set_string("Alarm");
+//	else
+//		set_string("Alrm");
+//}
 
 // Write 8 bits to HV5812 driver
 void write_vfd_8bit(uint8_t data)
@@ -447,6 +469,7 @@ void write_vfd_8bit(uint8_t data)
   }
 }
 
+#ifdef iv6_support
 // Writes to the HV5812 driver for IV-6
 // HV1~6:   Digit grids, 6 bits
 // HV7~14:  VFD segments, 8 bits
@@ -466,7 +489,9 @@ void write_vfd_iv6(uint8_t digit, uint8_t segments)
 	LATCH_DISABLE;
 	LATCH_ENABLE;	
 }
+#endif
 
+#ifdef iv17_support
 // Writes to the HV5812 driver for IV-17
 // HV1~4:  Digit grids, 4 bits
 // HV 5~2: VFD segments, 16-bits
@@ -482,9 +507,9 @@ void write_vfd_iv17(uint8_t digit, uint16_t segments)
 	LATCH_DISABLE;
 	LATCH_ENABLE;
 }
+#endif
 
-
-// Writes to the HV5812 driver for IV-6
+// Writes to the HV5812 driver for IV-18
 // HV1~10:  Digit grids, 10 bits
 // HV11~18: VFD segments, 8 bits
 // HV19~20: NC
@@ -522,6 +547,7 @@ void clear_screen(void)
 		data[i] = ' ';
 }
 
+
 void shift_in(char c)
 {
 	for (uint8_t i = 0; i < 7; i++) {
@@ -543,11 +569,13 @@ void shift_in(char c)
 	*/
 }
 
+
 void set_char_at(char c, uint8_t offset)
 {
 	data[offset] = c;
 }
 
+#ifdef set_number
 // show number on screen
 void set_number(uint16_t num)
 {
@@ -568,3 +596,4 @@ void set_number(uint16_t num)
 	data[0] = num % 10;
 	num /= 10;
 }
+#endif

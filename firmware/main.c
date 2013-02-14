@@ -13,7 +13,7 @@
  *
  */
 
-#define DEMO
+//#define DEMO
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -30,9 +30,9 @@
 #define SPIMODE 0	// Sample on leading _rising_ edge, setup on trailing _falling_ edge.
 //#define SPIMODE 1	// Sample on leading _falling_ edge, setup on trailing _rising_ edge.
 
-// brightness range 1-100
+// brightness range 1-10
 #ifndef DEFAULT_BRIGHTNESS
-#define DEFAULT_BRIGHTNESS 100
+#define DEFAULT_BRIGHTNESS 10  // ???
 #endif // DEFAULT_BRIGHTNESS
 
 uint8_t EEMEM b_brightness = DEFAULT_BRIGHTNESS;
@@ -52,7 +52,7 @@ void init(void)
 	cli();	// disable interrupts
 	
 	spiX_initslave(SPIMODE);
-	set_brightness(eeprom_read_byte(&b_brightness));
+//	set_brightness(eeprom_read_byte(&b_brightness));  /// redundant ???
 	display_init(g_brightness);
 	CLKPR = 0b10000000 ; // PSE=1 to enable change
   CLKPR = 0b00000001 ; // div by 2 to get 8 MHz Clock 	
@@ -64,6 +64,7 @@ void init(void)
 	*/
 }
 
+/* ***
 void show_address(uint8_t addr)
 {
 	uint8_t data[3];
@@ -82,6 +83,7 @@ void show_address(uint8_t addr)
 	set_char_at(data[1], 6);
 	set_char_at(data[2], 7);
 }
+*** */
 
 // scroll mode
 #define ROTATE 0 // use a rotating 4 byte buffer to store data
@@ -124,6 +126,7 @@ void processSPI(void)
 			else
 				scroll_mode = SCROLL;
 			break;
+#ifdef segment_data
 		case 0x84: // receive segment data
 			c = spi_xfer(0);
 
@@ -138,18 +141,20 @@ void processSPI(void)
 			*/
 
 			break;
+#endif
 		case 0x85: // set dots (the four bits of the second byte controls dots individually)
 			dots = spi_xfer(0);
 			break;
+#ifdef set_number
 		case 0x88: // display integer
 			{
 				uint8_t i1 = spi_xfer(0);
 				uint8_t i2 = spi_xfer(0);
-			
 				uint16_t i = (i2 << 8) + i1;
 				set_number(i);
 			}
 			break;
+#endif
 		case 0x89: // set position (only valid for ROTATE mode)
 			counter = spi_xfer(0);
 			break;
@@ -157,7 +162,10 @@ void processSPI(void)
 			spi_xfer(3);
 			break;
 		case 0x8b: // get number of digits
-			spi_xfer(8);
+			spi_xfer(get_digits());  
+			break;
+		case 0x8c: // get display type
+			spi_xfer(get_shield());  
 			break;
 
 		default:
@@ -198,14 +206,14 @@ void main(void)
 //	while (1) {
 //	for (int j = 0; j < 5; j++) {
 		for (int i = 'A'; i <= 'Z'+1; i++) {
-			//set_char_at(i, 0);
-			set_char_at(i+1, 1);
-			set_char_at(i+2, 2);
-			set_char_at(i+3, 3);
-			set_char_at(i+4, 4);
-			set_char_at(i+5, 5);
-			set_char_at(i+6, 6);
-			set_char_at(i+7, 7);
+//			set_char_at(i, 0);
+			set_char_at(i+0, 1);
+			set_char_at(i+1, 2);
+			set_char_at(i+2, 3);
+			set_char_at(i+3, 4);
+			set_char_at(i+4, 5);
+			set_char_at(i+5, 6);
+			set_char_at(i+6, 7);
 //			set_char_at(i+7, 8);
 //			set_char_at(i+8, 9);
 //			set_char_at(i+9, 10);
@@ -216,8 +224,8 @@ void main(void)
 		}
 //	}
 #endif // DEMO
-
-	_delay_ms(500);
+	set_string("vfdrpi10");
+	_delay_ms(1000);
 	// clear display
 	clear_screen();
 		
