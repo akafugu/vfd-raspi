@@ -110,6 +110,6 @@ uint16_t calculate_segments_16(uint8_t ch)
 	else if (ch == '/')
 		segs = segJ+segM;
 	else
-		segs = segH+segI+segJ+segK+segL+segM+segG1+segG2;
+		segs = segH+segI+segJ+segK+segL+segM+segG1+segG2;  // asterisk
 	return segs;
 }
