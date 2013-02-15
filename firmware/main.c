@@ -38,6 +38,7 @@
 uint8_t EEMEM b_brightness = DEFAULT_BRIGHTNESS;
 
 volatile uint8_t g_brightness = 10;
+volatile int8_t g_volume;
 extern uint16_t dots;
 
 uint8_t g_has_dots;
@@ -47,15 +48,10 @@ void init_EEPROM(void)
 	eeprom_write_byte(&b_brightness, DEFAULT_BRIGHTNESS);
 }
 
-void init(void)
+void init_SPI(void)
 {
 	cli();	// disable interrupts
-	
 	spiX_initslave(SPIMODE);
-//	set_brightness(eeprom_read_byte(&b_brightness));  /// redundant ???
-	display_init(g_brightness);
-	CLKPR = 0b10000000 ; // PSE=1 to enable change
-  CLKPR = 0b00000001 ; // div by 2 to get 8 MHz Clock 	
 	sei(); // enable interrupts
 	/*
 	// set up interrupt for alarm switch
@@ -193,12 +189,18 @@ ISR( PCINT2_vect )
 }
 */
 
-
 void main(void) __attribute__ ((noreturn));
 
 void main(void)
 {
-	init();
+// We're running with an external 16 mhz resonator
+// Set prescaler to divide by 2 for 8 mhz for 3.3v operation
+	CLKPR = 0b10000000 ; // PSE=1 to enable change
+  CLKPR = 0b00000001 ; // div by 2 to get 8 MHz Clock 	
+	sei(); // enable interrupts
+
+//	set_brightness(eeprom_read_byte(&b_brightness));  /// redundant ???
+	display_init(g_brightness);
 
 #ifdef DEMO
 	set_char_at(' ', 0);
@@ -224,10 +226,19 @@ void main(void)
 		}
 //	}
 #endif // DEMO
-	set_string("vfdrpi10");
+
+	if (get_digits() == 8)
+		set_string("vfdrpi10");
+	else if (get_digits() == 6)
+		set_string("vrpi10");
+	else
+		set_string("vr10");
 	_delay_ms(1000);
 	// clear display
 	clear_screen();
+
+	init_SPI();  // init SPI
+	_delay_ms(200);
 		
 	while (1) {
 		processSPI();
