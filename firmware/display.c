@@ -15,6 +15,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
 #include "display.h"
 
 #define iv17_support
@@ -98,7 +99,7 @@ void detect_shield(void)
 			digits = 4;
 			break;
 #endif
-		case(7):  // IV-18 shield (note: save value as no shield - all bits on)
+		case(7):  // IV-18 shield (note: same value as no shield - all bits on)
 			shield = SHIELD_IV18;
 			digits = 8;
 			mpx_count = 8; 
@@ -118,7 +119,7 @@ void display_init(uint8_t brightness)
 	BLANK_DDR |= _BV(BLANK_BIT);
 
 	STROBE_LOW;
-//	BLANK_LOW;  // Unblank display
+	BLANK_LOW;  // Unblank display
 
 	clear_display();
 	detect_shield();
@@ -126,39 +127,32 @@ void display_init(uint8_t brightness)
 // PB2/OC0A is Strobe
 // PB3/OC1A is Blank (with 10k pullup)
 
-	// Inititalize timer for multiplexing PB2 Strobe
-	OCR0A = 128;  // set duty cycle for Strobe pulse
+	// Inititalize Timer0 for multiplexing interrupt
 	TCCR0B = (1<<CS01); // Set Prescaler to clk/8 : 1 click = 1us. CS01=1 
-  // fast PWM, *clear* OC0A (Strobe pin) on match
-  TCCR0A = _BV(WGM00) | _BV(WGM01);  
-  TCCR0A |= _BV(COM0A1);  // clear OC0A on compare match
-//  TCCR0A |= _BV(COM0A0);  // set OC0A on compare match ???
-	TIMSK |= (1<<TOIE0); // Enable Overflow Interrupt Enable
+	TIMSK |= (1<<TOIE0); // Enable Overflow Interrupt
 	TCNT0 = 0;  // Initialize counter 
 
-	// Inititalize timer for multiplexing PB3 Blank
-//	OCR1A = 255;  // initialize at max brightness  
-//	// Inititalize timer for multiplexing
-//	TCCR1B = (1<<CS01); // Set Prescaler to clk/8: 1 click = 1us. CS01=1 
-//  // fast PWM, set OC1A (Blank pin) on match
-//  TCCR1A = _BV(WGM00) | _BV(WGM01);  
-//  TCCR1A |= _BV(COM0A1);  // set OC1A on compare match
-//  TCCR1A |= _BV(COM0A0);
-//	TIMSK |= (1<<TOIE1); // Enable Overflow Interrupt Enable
-//	TCNT1 = 0; // Initialize counter
+	// Inititalize Timer1 for multiplexing PB3 (Blank)
+	OCR1A = 1;  // initialize brightness at maximum
+	TCCR1B = (1<<CS00); // Set Prescaler to clk: 1 click = ???. CS00=1
+  // fast PWM, 8 bit, set OC1A (Blank pin) on match
+  TCCR1A |= _BV(WGM10);
+	TCCR1B |= _BV(WGM12);  
+  TCCR1A |= _BV(COM0A1);  // clear OC1A on compare match
+	TCNT1 = 0; // Initialize counter
 	
-//	set_brightness(10);
+	set_brightness(10);
 }
 
-// brightness value: 1 (low) - 10 (high)
+// brightness value: 0 (low) - 10 (high)
 void set_brightness(uint8_t brightness) {
-	if (brightness > 10) brightness = 10;
-	brightness = (10 - brightness) * 25; // translate to PWM value
-
+uint8_t brt;  // timer1/ocr1x using only 8 bits
+	brt = brightness;
+	if (brt > 10) brt = 10;
+	brt = (10 - brt) * 25; // translate to PWM value
 	// Brightness is set by setting the PWM duty cycle for the blank
 	// pin of the VFD driver.
-	// 255 = min brightness, 0 = max brightness ???
-	OCR1A = brightness;
+	OCR1A = brt;  // C is supposed to sort this out correctly...
 
 }
 
@@ -301,7 +295,7 @@ void write_vfd_iv6(uint8_t digit, uint8_t segments)
 	
 	uint32_t val = (1 << digit) | ((uint32_t)segments << 6);
 	
-	write_vfd_8bit(0); // unused upper byte: for HV518P only
+//	write_vfd_8bit(0); // unused upper byte: for HV518P only
 	write_vfd_8bit(val >> 16);
 	write_vfd_8bit(val >> 8);
 	write_vfd_8bit(val);
@@ -319,7 +313,7 @@ void write_vfd_iv17(uint8_t digit, uint16_t segments)
 {
 	uint32_t val = (1 << digit) | ((uint32_t)segments << 4);
 
-	write_vfd_8bit(0); // unused upper byte: for HV518P only
+//	write_vfd_8bit(0); // unused upper byte: for HV518P only
 	write_vfd_8bit(val >> 16);
 	write_vfd_8bit(val >> 8);
 	write_vfd_8bit(val);
@@ -340,7 +334,7 @@ void write_vfd_iv18(uint8_t digit, uint8_t segments)
 	
 	uint32_t val = (1 << digit) | ((uint32_t)segments << 10);
 
-	write_vfd_8bit(0); // unused upper byte: for HV518P only
+//	write_vfd_8bit(0); // unused upper byte: for HV518P only
 	write_vfd_8bit(val >> 16);
 	write_vfd_8bit(val >> 8);
 	write_vfd_8bit(val);
@@ -352,7 +346,7 @@ void write_vfd_iv18(uint8_t digit, uint8_t segments)
 
 void clear_display(void)
 {
-	write_vfd_8bit(0);
+//	write_vfd_8bit(0);
 	write_vfd_8bit(0);
 	write_vfd_8bit(0);
 	write_vfd_8bit(0);

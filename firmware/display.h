@@ -22,7 +22,7 @@
 // DIGITS 1~14: HVOUT11~14
 // SEGMENTS A~DP: HVOUT17~24
 
-// HV5812 Data In
+// HV5812 Data In (pin 27)
 // HV518P Data In (pin 39)
 #define DATA_BIT PB0
 #define DATA_PORT PORTB
@@ -30,7 +30,7 @@
 #define DATA_HIGH DATA_PORT |= _BV(DATA_BIT)
 #define DATA_LOW DATA_PORT &= ~(_BV(DATA_BIT))
 
-// HV5812 Clock
+// HV5812 Clock (pin 15)
 // HV518P Clock (pin 21)
 #define CLOCK_BIT PB1
 #define CLOCK_PORT PORTB
@@ -38,7 +38,7 @@
 #define CLOCK_HIGH CLOCK_PORT |= _BV(CLOCK_BIT)
 #define CLOCK_LOW CLOCK_PORT &= ~(_BV(CLOCK_BIT))
 
-// HV5812 Latch / Strobe
+// HV5812 Latch / Strobe (pin 16)
 // HV518P LE (pin 22)
 #define STROBE_BIT PB2
 #define STROBE_PORT PORTB
@@ -49,7 +49,7 @@
 //#define LATCH_ENABLE LATCH_LOW
 //#define LATCH_DISABLE LATCH_HIGH
 
-// HV5812 Blank
+// HV5812 Blank (pin 13)
 // HV518P Strobe (pin 19)
 #define BLANK_BIT PB3
 #define BLANK_PORT PORTB
