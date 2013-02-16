@@ -42,6 +42,8 @@ volatile int8_t g_volume;
 extern uint16_t dots;
 
 uint8_t g_has_dots;
+uint8_t g_dot_flag;
+uint8_t g_dash_flag;
 
 void init_EEPROM(void)
 {
@@ -140,6 +142,12 @@ void processSPI(void)
 #endif
 		case 0x85: // set dots (the four bits of the second byte controls dots individually)
 			dots = spi_xfer(0);
+			break;
+		case 0x86: // set dot indicator
+			g_dot_flag = spi_xfer(0);
+			break;
+		case 0x87: // set dash indicator
+			g_dash_flag = spi_xfer(0);
 			break;
 #ifdef set_number
 		case 0x88: // display integer

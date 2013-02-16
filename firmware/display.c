@@ -45,6 +45,8 @@ uint8_t multiplex_counter = 0;
 // globals from main.c
 extern uint8_t g_brightness;
 extern uint8_t g_has_dots;
+extern uint8_t g_dot_flag;
+extern uint8_t g_dash_flag;
 
 // variables for controlling display blink
 uint8_t blink;
@@ -135,7 +137,7 @@ void display_init(uint8_t brightness)
 	// Inititalize Timer1 for multiplexing PB3 (Blank)
 	OCR1A = 1;  // initialize brightness at maximum
 	TCCR1B = (1<<CS00); // Set Prescaler to clk: 1 click = ???. CS00=1
-  // fast PWM, 8 bit, set OC1A (Blank pin) on match
+  // fast PWM, 8 bit (TOP=0xff), set OC1A (Blank pin) on match
   TCCR1A |= _BV(WGM10);
 	TCCR1B |= _BV(WGM12);  
   TCCR1A |= _BV(COM0A1);  // clear OC1A on compare match
@@ -145,15 +147,14 @@ void display_init(uint8_t brightness)
 }
 
 // brightness value: 0 (low) - 10 (high)
+// Brightness is set by setting the PWM duty cycle for the blank
+// pin of the VFD driver.
 void set_brightness(uint8_t brightness) {
-uint8_t brt;  // timer1/ocr1x using only 8 bits
+uint16_t brt;  // timer1/ocr1x using only 8 bits
 	brt = brightness;
 	if (brt > 10) brt = 10;
 	brt = (10 - brt) * 25; // translate to PWM value
-	// Brightness is set by setting the PWM duty cycle for the blank
-	// pin of the VFD driver.
-	OCR1A = brt;  // C is supposed to sort this out correctly...
-
+	OCR1A = brt;
 }
 
 void set_blink(bool on)
@@ -194,10 +195,13 @@ void display_multiplex_iv18(void)
 	uint8_t seg = 0;
 	clear_display();
 	if (display_on) {
-		if (multiplex_counter == 8) 
-			//if (g_alarm_switch)
-			//	seg = (1<<7);
+		if (multiplex_counter == 8) {
+			if (g_dot_flag)
+				seg = (1<<7);
+			if (g_dash_flag)
+				seg = (1<<6);
 			write_vfd_iv18(8, seg);
+		}
 		else 
 			write_vfd_iv18(multiplex_counter, calculate_segments_7(data[7-multiplex_counter]));
 	}
