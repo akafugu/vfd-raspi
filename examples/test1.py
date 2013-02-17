@@ -99,19 +99,15 @@ def chkButtons():
 	if (st1 != S1status):
 		if (st1):
 			S1push = True
-#			print "S1 on"
 			setDash(1)
 		else:
-#			print "S1 off"
 			setDash(0)
 		S1status = st1
 	if (st2 != S2status):
 		if (st2):
 			S2push = True
-#			print "S2 on"
 			setDot(1)
 		else:
-#			print "S2 off"
 			setDot(0)
 		S2status = st2
 	if (st3 != S3status):
@@ -168,23 +164,30 @@ action = { 1:setAlarm, 2:setBright, 3:setEnd}
 
 def doAction():
 	global menuState, menuTime
-	menuTime = time.time()  # reset menu timeout timer
-	action[menuState]()
+	if (menuState > 0):
+		menuTime = time.time()  # reset menu timeout timer
+		action[menuState]()
+	else:
+		showDate()
 
-def showTime():
-	global saveTime
+def showDate():
 	setPos(0)
 	now = datetime.datetime.now()
+	timestr = '{:%y-%m-%d}'.format(now)
+	SPIwrite(timestr)
+	# Toggle dots during date display
+	if (now.second % 2):
+		setDots(0b00000001)
+	else:
+		setDots(0b00000000)
+
+def showTime(now):
+	global saveTime
+	setPos(0)
 	if (now.second != saveTime.second):  # run once a second
 		saveTime = now
 		if (now.second >= 57) and (now.second <= 59):  # show date
-			timestr = '{:%y-%m-%d}'.format(now)
-			SPIwrite(timestr)
-			# Toggle dots during date display
-			if (now.second % 2):
-				setDots(0b00000001)
-			else:
-				setDots(0b00000000)
+			showDate()
 		else:
 			timestr = '{:  %I%M%S}'.format(now)
 			SPIwrite(timestr)
@@ -223,16 +226,18 @@ signal.signal(signal.SIGINT, handleCtrlC)
 
 # main loop - check buttons, do menu, display time
 while(True):
+	now = datetime.datetime.now()
 	chkButtons()
 	if (S1push):
 		doMenu()
 	elif (S2push):
-		if (menuState > 0):
-			doAction()
-	if (menuState > 0):
+		doAction()
+	elif (S2status):
+		showDate()
+	elif (menuState > 0):
 		if (time.time() - menuTime > 3):
 			menuEnd()
 	else:
-		showTime()
+		showTime(now)
 	# Wait 100 ms
 	time.sleep(0.1)
