@@ -7,7 +7,7 @@ import spidev
 import signal
 
 # ===========================================================================
-# SPI Clock Example using hardware SPI with SPIDEV
+# Akafugu Raspberry Pi VFD Clock test case 1
 # ===========================================================================
 
 #CE0  = 8
@@ -73,7 +73,7 @@ SPIwrite("01234567")
 time.sleep(1)
 for b in range(0,10):
 	setBrt(b)
-	time.sleep(1)
+	time.sleep(0.2)
 #setDots(0b00110011)
 #time.sleep(1)
 #setDots(0b01010101)
@@ -87,36 +87,53 @@ S1status = False
 S2status = False
 S3status = False
 saveTime = datetime.datetime.now()
+menu = ['', 'alarm   ', 'bright  ', 'end     ']
+menuState = 0
 
 def chkButtons():
+	global S1push, S2push, menuState
 	global S1status, S2status, S3status
-	st = not GPIO.input(S1)
-	if (st != S1status):
-		if (st):
-			print "S1 on"
+	S1push = False
+	S2push = False
+	st1 = not GPIO.input(S1)
+	st2 = not GPIO.input(S2)
+	st3 = GPIO.input(S3)
+	if (st1 != S1status):
+		if (st1):
+			S1push = True
+#			print "S1 on"
 			setDash(1)
 		else:
-			print "S1 off"
+#			print "S1 off"
 			setDash(0)
-			S1status = st
-	st = not GPIO.input(S2)
-	if (st != S2status):
-		if (st):
-			print "S2 on"
+		S1status = st1
+	if (st2 != S2status):
+		if (st2):
+			S2push = True
+#			print "S2 on"
 			setDot(1)
 		else:
-			print "S2 off"
+#			print "S2 off"
 			setDot(0)
-		S2status = st
-	st = GPIO.input(S3)
-	if (st != S3status):
-		if (st):
+		S2status = st2
+	if (st3 != S3status):
+		if (st3):
+#			S3push = True
 			print "S3 on"
 			setDot(1)
 		else:
 			print "S3 off"
 			setDot(0)
-		S3status = st
+		S3status = st3
+
+def showMenu():
+	global S1push, S2push, menuState
+	setDots(0)
+	setPos(0)
+	SPIwrite(menu[menuState])
+	if (menuState == len(menu)-1):
+		menuState = 0
+		time.sleep(0.5)
 
 def showTime():
 	global saveTime
@@ -151,8 +168,6 @@ def showTime():
 			else:
 				setBrt(10)  # max bright
 
-setDots(0b00010100)
-
 def sayBye():
 	SPI(0x82)  # clear
 	SPIwrite("  bye  ")
@@ -172,7 +187,13 @@ signal.signal(signal.SIGINT, handleCtrlC)
 
 # Continually update the time on the VFD display
 while(True):
+#	global S1push, S2push, menuState
 	chkButtons()
-	showTime()
+	if (S1push):
+		menuState += 1
+	if (menuState > 0):
+		showMenu()
+	else:
+		showTime()
 	# Wait 100 ms
 	time.sleep(0.1)
