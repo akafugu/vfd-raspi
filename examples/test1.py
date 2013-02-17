@@ -35,39 +35,34 @@ def SPI(b):
 	b1 = [b]
 	b2 = spi.xfer(b1)
 	time.sleep(0.001)
-
+def clear():
+	SPI(0x82)
 def SPIwrite(str):
 	for i in range(len(str)):
 		SPI(ord(str[i]))
-
 def setNum(n):
 	SPI(0x88)
 	SPI(n & 0xFF)
 	SPI(n >> 8)
-
 def setDots(d):
 	SPI(0x85)  # dots
 	SPI(d)
-
 def setPos(n):
 	SPI(0x89)  # position
 	SPI(n)
-
 def setBrt(b):
 	SPI(0x80)  # brightness
 	SPI(b)
-
 def setDot(b):
 	SPI(0x86)  # dot flag
 	SPI(b)
-
 def setDash(b):
 	SPI(0x87)  # dash flag
 	SPI(b)
 
 print "Raspi VFD test1"
 
-SPI(0x82)  # clear
+clear()
 SPIwrite("01234567")
 #setDots(0b11111111)
 time.sleep(1)
@@ -77,40 +72,43 @@ for b in range(0,10):
 #setDots(0b00110011)
 #time.sleep(1)
 #setDots(0b01010101)
-SPI(0x82)  # reset
+clear()
 
 #timeString  = time.strftime("%I%M")
 #print timeString
 
 # Globals
-S1status = False
-S2status = False
-S3status = False
+S1state = False
+S2state = False
+S3state = False
 saveTime = datetime.datetime.now()
 
 def chkButtons():
-	global S1push, S2push, menuState
-	global S1status, S2status, S3status
+	global S1push, S2push, menuState, menuTime
+	global S1state, S2state, S3state
 	S1push = False
 	S2push = False
 	st1 = not GPIO.input(S1)
 	st2 = not GPIO.input(S2)
 	st3 = GPIO.input(S3)
-	if (st1 != S1status):
+	if (st1 != S1state):
+		menuTime = time.time()
 		if (st1):
 			S1push = True
 			setDash(1)
 		else:
 			setDash(0)
-		S1status = st1
-	if (st2 != S2status):
+		S1state = st1
+	if (st2 != S2state):
+		menuTime = time.time()
 		if (st2):
 			S2push = True
 			setDot(1)
 		else:
 			setDot(0)
-		S2status = st2
-	if (st3 != S3status):
+		S2state = st2
+	if (st3 != S3state):
+		menuTime = time.time()
 		if (st3):
 #			S3push = True
 			print "S3 on"
@@ -118,13 +116,14 @@ def chkButtons():
 		else:
 			print "S3 off"
 			setDot(0)
-		S3status = st3
+		S3state = st3
 
 g_alarm = False
 g_bright = 10
 
 menuNames = ['', 'alarm   ', 'bright  ', 'end     ']
 menuState = 0
+actionState = 0
 menuTime = time.time
 
 def menuAlarm():
@@ -132,41 +131,45 @@ def menuAlarm():
 def menuBright():
 	global menuState
 def menuEnd():
-	global menuState
+	global menuState, actionState
 	time.sleep(0.5)
 	menuState = 0
+	actionState = 0
 menu = { 1:menuAlarm, 2:menuBright, 3:menuEnd }
 
 def doMenu():
 	global menuState, menuTime
 	menuState += 1
-	menuTime = time.time()
 	setDots(0)
 	setPos(0)
 	SPIwrite(menuNames[menuState])
 	menu[menuState]()
 	
-def setAlarm():
+def setAlarm(update):
 	global g_alarm
 	
-def setBright():
-	global g_bright
-	g_bright = (g_bright+1) if (g_bright<10) else 0
+def setBright(update):
+	global g_bright, menuState, actionState
+	if (update):  # not first time here?
+		g_bright = (g_bright+1) if (g_bright<10) else 0
 	s = '{:>8}'.format(g_bright)
 	setPos(0)
 	SPIwrite(s)
 	setBrt(g_bright)
 	
-def setEnd():
-	s = 0
+def setEnd(update):
+	s = 0  # python nop?
 	
 action = { 1:setAlarm, 2:setBright, 3:setEnd}
 
-def doAction():
-	global menuState, menuTime
+def doAction():  # S2 pushed
+	global actionState, menuState, menuTime
 	if (menuState > 0):
-		menuTime = time.time()  # reset menu timeout timer
-		action[menuState]()
+		if (actionState == menuState):
+			action[menuState](True)
+		else:
+			actionState = menuState
+			action[menuState](False)
 	else:
 		showDate()
 
@@ -208,7 +211,7 @@ def showTime(now):
 				setBrt(10)  # max bright
 
 def sayBye():
-	SPI(0x82)  # clear
+	clear()
 	SPIwrite("  bye  ")
 	time.sleep(2.0)
 	SPI(0x82)  # clear
@@ -232,12 +235,12 @@ while(True):
 		doMenu()
 	elif (S2push):
 		doAction()
-	elif (S2status):
+	elif (S2state):
 		showDate()
 	elif (menuState > 0):
-		if (time.time() - menuTime > 3):
-			menuEnd()
-	else:
+		if (time.time() - menuTime > 2):
+			menuEnd()  # menu timed out
+	else:  # not in menu, show the time
 		showTime(now)
 	# Wait 100 ms
 	time.sleep(0.1)
