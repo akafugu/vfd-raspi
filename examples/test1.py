@@ -1,13 +1,13 @@
 #!/usr/bin/python
 
 import RPi.GPIO as GPIO
-import time
-import datetime
+import sched, time, datetime, signal
 import spidev
-import signal
 
 # ===========================================================================
-# Akafugu Raspberry Pi VFD Clock test case 1
+# SPI Clock Example using hardware SPI with SPIDEV
+# 16 February 2013
+# William B Phelps - wm@usa.net
 # ===========================================================================
 
 #CE0  = 8
@@ -87,8 +87,6 @@ S1status = False
 S2status = False
 S3status = False
 saveTime = datetime.datetime.now()
-menu = ['', 'alarm   ', 'bright  ', 'end     ']
-menuState = 0
 
 def chkButtons():
 	global S1push, S2push, menuState
@@ -126,14 +124,52 @@ def chkButtons():
 			setDot(0)
 		S3status = st3
 
-def showMenu():
-	global S1push, S2push, menuState
+g_alarm = False
+g_bright = 10
+
+menuNames = ['', 'alarm   ', 'bright  ', 'end     ']
+menuState = 0
+menuTime = time.time
+
+def menuAlarm():
+	global menuState
+def menuBright():
+	global menuState
+def menuEnd():
+	global menuState
+	time.sleep(0.5)
+	menuState = 0
+menu = { 1:menuAlarm, 2:menuBright, 3:menuEnd }
+
+def doMenu():
+	global menuState, menuTime
+	menuState += 1
+	menuTime = time.time()
 	setDots(0)
 	setPos(0)
-	SPIwrite(menu[menuState])
-	if (menuState == len(menu)-1):
-		menuState = 0
-		time.sleep(0.5)
+	SPIwrite(menuNames[menuState])
+	menu[menuState]()
+	
+def setAlarm():
+	global g_alarm
+	
+def setBright():
+	global g_bright
+	g_bright = (g_bright+1) if (g_bright<10) else 0
+	s = '{:>8}'.format(g_bright)
+	setPos(0)
+	SPIwrite(s)
+	setBrt(g_bright)
+	
+def setEnd():
+	s = 0
+	
+action = { 1:setAlarm, 2:setBright, 3:setEnd}
+
+def doAction():
+	global menuState, menuTime
+	menuTime = time.time()  # reset menu timeout timer
+	action[menuState]()
 
 def showTime():
 	global saveTime
@@ -185,14 +221,17 @@ def handleCtrlC(signum, frame):
 signal.signal(signal.SIGTERM, handleSigTERM)
 signal.signal(signal.SIGINT, handleCtrlC)
 
-# Continually update the time on the VFD display
+# main loop - check buttons, do menu, display time
 while(True):
-#	global S1push, S2push, menuState
 	chkButtons()
 	if (S1push):
-		menuState += 1
+		doMenu()
+	elif (S2push):
+		if (menuState > 0):
+			doAction()
 	if (menuState > 0):
-		showMenu()
+		if (time.time() - menuTime > 3):
+			menuEnd()
 	else:
 		showTime()
 	# Wait 100 ms
