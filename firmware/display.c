@@ -78,14 +78,14 @@ void detect_shield(void)
 		 ((SIGNATURE_PIN & _BV(SIGNATURE_BIT_1)) ? 0b10  : 0) |
 		 ((SIGNATURE_PIN & _BV(SIGNATURE_BIT_2)) ? 0b100 : 0 ));
 	// set common defaults
-	mpx_count = 8;
+	mpx_count = 64;
 	g_has_dots = true;
 	switch (sig) {
 #ifdef iv17_support
 		case(1):  // IV-17 shield
 			shield = SHIELD_IV17;
 			digits = 4;
-			mpx_count = 4;
+			mpx_count = 32;
 			g_has_dots = false;
 			break;
 #endif
@@ -104,7 +104,7 @@ void detect_shield(void)
 		case(7):  // IV-18 shield (note: same value as no shield - all bits on)
 			shield = SHIELD_IV18;
 			digits = 8;
-			mpx_count = 8; 
+			mpx_count = 48;
 			break;
 		default:
 			shield = SHIELD_NONE;
@@ -126,22 +126,25 @@ void display_init(uint8_t brightness)
 	clear_display();
 	detect_shield();
 
-// PB2/OC0A is Strobe
-// PB3/OC1A is Blank (with 10k pullup)
+// PD2 is Strobe
+// PB2/OC0A is Blank (with 10k pullup)
 
-	// Inititalize Timer0 for multiplexing interrupt
-	TCCR0B = (1<<CS01); // Set Prescaler to clk/8 : 1 click = 1us. CS01=1 
-	TIMSK |= (1<<TOIE0); // Enable Overflow Interrupt
-	TCNT0 = 0;  // Initialize counter 
+// We use Timer0 for both the display multiplext interrupt
+// and for PWM on OC0A for blanking
 
-	// Inititalize Timer1 for multiplexing PB3 (Blank)
-	OCR1A = 1;  // initialize brightness at maximum
-	TCCR1B = (1<<CS00); // Set Prescaler to clk: 1 click = ???. CS00=1
-  // fast PWM, 8 bit (TOP=0xff), set OC1A (Blank pin) on match
-  TCCR1A |= _BV(WGM10);
-	TCCR1B |= _BV(WGM12);  
-  TCCR1A |= _BV(COM0A1);  // clear OC1A on compare match
-	TCNT1 = 0; // Initialize counter
+	// Inititalize Timer1 for multiplexing interrupt
+//	TCCR1B = (1<<CS11); // Set Prescaler to clk/8 : 1 click = 1us. CS01=1 
+//	TCCR1B = (1<<CS10); // Set Prescaler to clk/1 : 1 click = 1us. CS00=1 (8 bit timer)
+//  TCCR1A |= _BV(WGM10); // Set TOP 0x00ff - makes Timer1 an 8 bit timer
+//	TIMSK |= (1<<TOIE1); // Enable Overflow Interrupt
+//	TCNT1 = 0;  // Initialize counter 
+
+	// Inititalize Timer0 for PWM on PB2/OC0A (Blank)
+	TCCR0B = (1<<CS00); // Set Prescaler to clk: 1 click = ???. CS00=1
+  // fast PWM, 8 bit (TOP=0xff), clear OC0A (Blank pin) on match
+  TCCR0A |= _BV(COM0A1) | _BV(WGM01) | _BV(WGM00);
+	TIMSK |= (1<<TOIE0); // Enable Timer0 Overflow Interrupt for Strobe
+	TCNT0 = 0; // Initialize counter
 	
 	set_brightness(10);
 }
@@ -154,7 +157,7 @@ uint16_t brt;  // timer1/ocr1x using only 8 bits
 	brt = brightness;
 	if (brt > 10) brt = 10;
 	brt = (10 - brt) * 25; // translate to PWM value
-	OCR1A = brt;
+	OCR0A = brt;
 }
 
 void set_blink(bool on)

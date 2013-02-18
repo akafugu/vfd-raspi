@@ -11,6 +11,12 @@
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
  * PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
+ * 17Feb2013/wbp - wiring changes
+ * MOVE:
+ *  Strobe from PB2 to PD2 (doesn't need PWM)
+ *  Blank from PB3 to PB2 (free up PB3 for speaker)
+ * ADD:
+ *  Piezo lines PB3 & PB4
  */
 
 #ifndef DISPLAY_H_
@@ -38,24 +44,37 @@
 #define CLOCK_HIGH CLOCK_PORT |= _BV(CLOCK_BIT)
 #define CLOCK_LOW CLOCK_PORT &= ~(_BV(CLOCK_BIT))
 
-// HV5812 Latch / Strobe (pin 16)
-// HV518P LE (pin 22)
-#define STROBE_BIT PB2
-#define STROBE_PORT PORTB
-#define STROBE_DDR DDRB
+// HV5812 Latch / Strobe (pin 6)
+// HV518P LE (pin ??)
+#define STROBE_BIT PD2
+#define STROBE_PORT PORTD
+#define STROBE_DDR DDRD
 #define STROBE_HIGH STROBE_PORT |= _BV(STROBE_BIT)
 #define STROBE_LOW STROBE_PORT &= ~(_BV(STROBE_BIT))
 
 //#define LATCH_ENABLE LATCH_LOW
 //#define LATCH_DISABLE LATCH_HIGH
 
-// HV5812 Blank (pin 13)
-// HV518P Strobe (pin 19)
-#define BLANK_BIT PB3
+// HV5812 Blank (pin 14)
+// HV518P Strobe (pin ??)
+#define BLANK_BIT PB2
 #define BLANK_PORT PORTB
 #define BLANK_DDR DDRB
 #define BLANK_HIGH BLANK_PORT |= _BV(BLANK_BIT)
 #define BLANK_LOW BLANK_PORT &= ~(_BV(BLANK_BIT))
+
+// HV5812 Piezo speaker (pins 15, 16)
+#define PIEZO1_BIT PB3
+#define PIEZO1_PORT PORTB
+#define PIEZO1_DDR DDRB
+#define PIEZO1_HIGH PIEZO1_PORT |= _BV(PIEZO1_BIT)
+#define PIEZO1_LOW PIEZO1_PORT &= ~(_BV(PIEZO1_BIT))
+
+#define PIEZO2_BIT PB4
+#define PIEZO2_PORT PORTB
+#define PIEZO2_DDR DDRB
+#define PIEZO2_HIGH PIEZO2_PORT |= _BV(PIEZO2_BIT)
+#define PIEZO2_LOW PIEZO2_PORT &= ~(_BV(PIEZO2_BIT))
 
 // Shield signature
 #define SIGNATURE_PORT  PORTD

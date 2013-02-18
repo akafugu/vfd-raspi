@@ -26,6 +26,7 @@
 
 #include "usiSpiSlave.h"
 #include "display.h"
+#include "piezo.h"
 
 #define SPIMODE 0	// Sample on leading _rising_ edge, setup on trailing _falling_ edge.
 //#define SPIMODE 1	// Sample on leading _falling_ edge, setup on trailing _rising_ edge.
@@ -38,7 +39,7 @@
 uint8_t EEMEM b_brightness = DEFAULT_BRIGHTNESS;
 
 volatile uint8_t g_brightness = 10;
-volatile int8_t g_volume;
+volatile int8_t g_volume = 1;  // default loud
 extern uint16_t dots;
 
 uint8_t g_has_dots;
@@ -242,11 +243,17 @@ void main(void)
 	else
 		set_string("vr10");
 	_delay_ms(1000);
-	// clear display
-	clear_screen();
 
 	init_SPI();  // init SPI
 	_delay_ms(200);
+
+	piezo_init();
+	beep(440, 1);
+	beep(1320, 1);
+	beep(440, 1);
+
+	// clear display
+	clear_screen();
 		
 	while (1) {
 		processSPI();
