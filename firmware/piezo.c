@@ -18,7 +18,7 @@
 
 extern uint8_t g_volume;
 
-// pizeo code from: https://github.com/adafruit/Ice-Tube-Clock
+// piezo code from: https://github.com/adafruit/Ice-Tube-Clock
 // WGM13 + WGM12 + WGM11 = Fast PWM with ICR1 as Top
 void piezo_init(void) {
 	PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);  // speaker off
@@ -32,21 +32,18 @@ void piezo_init(void) {
   OCR1B = OCR1A = ICR1 / 2;
 }
 
-void beep(uint16_t freq, uint8_t times) {
+void beep(uint16_t freq, uint16_t dur) {
   // set the PWM output to match the desired frequency
-  ICR1 = (F_CPU/8)/freq;
-  // we want 50% duty cycle square wave
+  ICR1 = (F_CPU/8)/freq;  // set Top
+//  ICR1 = 1000000/freq;  // set Top
+  // 50% duty cycle square wave
   OCR1A = OCR1B = ICR1/2;
    
-  while (times--) {
-    TCCR1B |= _BV(CS11); // connect clock/8 to turn speaker on
-    // beeps are 75ms long on
-    _delay_ms(75);
-    TCCR1B &= ~_BV(CS11); // disconnect clock source to turn it off
-    PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
-    // beeps are 75ms long off
-    _delay_ms(75);
-  }
+  TCCR1B |= _BV(CS11); // connect clock/8 to turn speaker on
+  // beep for the requested time
+  _delay_ms(dur);
+  TCCR1B &= ~_BV(CS11); // disconnect clock source to turn it off
+  PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
   // turn speaker off
   PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
 }

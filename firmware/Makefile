@@ -127,12 +127,16 @@ ifeq ($(SILENT), )
 endif
 
 ifeq ($(MCU), $(filter $(MCU), attiny2313 attiny4313))
+  # 0xe4 = 0b11100100 calibrate internal RC osc 8 mhz
+	# 0xde = 0b11010111  
+  # internal 4MHz oscillator
+  #AVRDUDE_WRITE_FUSE ?= -U lfuse:w:0xe2:m -U hfuse:w:0xdb:m
   # internal 8MHz oscillator
-  #AVRDUDE_WRITE_FUSE ?= -U lfuse:w:0xe4:m -U hfuse:w:0xdb:m
+  AVRDUDE_WRITE_FUSE ?= -U lfuse:w:0xe4:m -U hfuse:w:0xdb:m
   # external 3~8MHz oscillator
   #AVRDUDE_WRITE_FUSE ?= -U lfuse:w:0xfd:m -U hfuse:w:0xdb:m
   # external 8~20MHz oscillator
-  AVRDUDE_WRITE_FUSE ?= -U lfuse:w:0xde:m -U hfuse:w:0xdb:m
+  #AVRDUDE_WRITE_FUSE ?= -U lfuse:w:0xde:m -U hfuse:w:0xdb:m
 endif
 
 ifneq ($(AVRDUDE_PROGRAMMER), )

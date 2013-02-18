@@ -104,7 +104,7 @@ void detect_shield(void)
 		case(7):  // IV-18 shield (note: same value as no shield - all bits on)
 			shield = SHIELD_IV18;
 			digits = 8;
-			mpx_count = 48;
+			mpx_count = 32;
 			break;
 		default:
 			shield = SHIELD_NONE;

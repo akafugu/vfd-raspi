@@ -35,8 +35,13 @@
 #ifndef DEFAULT_BRIGHTNESS
 #define DEFAULT_BRIGHTNESS 10  // ???
 #endif // DEFAULT_BRIGHTNESS
+// volume lo/hi
+//#ifndef DEFAULT_VOLUME
+//#define DEFAULT_VOLUME 1  // HI
+//#endif // DEFAULT_VOLUME
 
 uint8_t EEMEM b_brightness = DEFAULT_BRIGHTNESS;
+//uint8_t EEMEM b_volume = DEFAULT_VOLUME;
 
 volatile uint8_t g_brightness = 10;
 volatile int8_t g_volume = 1;  // default loud
@@ -103,15 +108,18 @@ uint8_t spi_xfer(uint8_t b)
 
 void processSPI(void)
 {
-	uint8_t b, c;
+	uint8_t b, c, d;
 
 	b = spi_xfer(0);
 	
 	switch (b) {
 		case 0x80: // set brightness
-			c = spi_xfer(0);
-			set_brightness(c);
-			eeprom_write_byte(&b_brightness, c);
+			c = spi_xfer(g_brightness);  // send old value back
+			if (c < 11) {
+				set_brightness(c);
+				g_brightness = c;
+				eeprom_write_byte(&b_brightness, c);
+			}
 			break;
 		case 0x82: // clear
 			clear_screen();
@@ -173,6 +181,24 @@ void processSPI(void)
 			spi_xfer(get_shield());  
 			break;
 
+		case 0x90: // set volume
+			c = spi_xfer(g_volume);  // send old value back
+			if (c<2) {
+				g_volume = c;
+//				eeprom_write_byte(&b_volume, c);
+			}
+			break;
+		case 0x91: // beep tone/10, time/10
+			c = spi_xfer(0);
+			d = spi_xfer(0);
+			beep(c<<4, d<<4);
+			spi_xfer(1); // signal complete
+			break;
+		case 0x92: // tick
+			tick();
+			spi_xfer(1); // signal complete
+			break;
+
 		default:
 			if (b >= 0x80) break; // anything above 0x80 is considered a reserved command and is ignored
 
@@ -204,12 +230,13 @@ void main(void)
 {
 // We're running with an external 16 mhz resonator
 // Set prescaler to divide by 2 for 8 mhz for 3.3v operation
-	CLKPR = 0b10000000 ; // PSE=1 to enable change
-  CLKPR = 0b00000001 ; // div by 2 to get 8 MHz Clock 	
+//	CLKPR = 0b10000000 ; // PSE=1 to enable change
+//  CLKPR = 0b00000001 ; // div by 2 to get 8 MHz Clock 	
 	sei(); // enable interrupts
 
-//	set_brightness(eeprom_read_byte(&b_brightness));  /// redundant ???
+	g_brightness = eeprom_read_byte(&b_brightness);
 	display_init(g_brightness);
+//	g_volume = eeprom_read_byte(&b_volume);
 
 #ifdef DEMO
 	set_char_at(' ', 0);
@@ -248,9 +275,11 @@ void main(void)
 	_delay_ms(200);
 
 	piezo_init();
-	beep(440, 1);
-	beep(1320, 1);
-	beep(440, 1);
+	beep(440, 200);
+	_delay_ms(100);
+	beep(880, 200);
+	_delay_ms(100);
+	beep(440, 200);
 
 	// clear display
 	clear_screen();
