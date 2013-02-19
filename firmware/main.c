@@ -48,7 +48,7 @@ volatile uint8_t g_volume = 1;  // default loud
 extern uint16_t dots;
 
 uint8_t g_has_dots;
-uint8_t g_seg0;  // iv-18 segment 0 data
+uint8_t g_iv18seg0;  // iv-18 segment 0 data
 
 void init_EEPROM(void)
 {
@@ -148,7 +148,7 @@ void processSPI(void)
 			dots = spi_xfer(0);
 			break;
 		case 0x86: // set IV-18 segment 0 indicators
-			g_seg0 = spi_xfer(0);
+			g_iv18seg0 = spi_xfer(0);
 			break;
 
 			case 0x89: // set position (only valid for ROTATE mode)
@@ -245,7 +245,7 @@ void main(void)
 //	}
 #endif // DEMO
 
-	if (get_digits() == 8)
+	if (get_digits() == 9)
 		set_string("vfdrpi10");
 	else if (get_digits() == 6)
 		set_string("vrpi10");

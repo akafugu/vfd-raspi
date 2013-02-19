@@ -46,7 +46,7 @@ uint8_t multiplex_counter = 0;
 // globals from main.c
 extern uint8_t g_brightness;
 extern uint8_t g_has_dots;
-extern uint8_t g_seg0;  // IV-18 segment 0 indicators
+extern uint8_t g_iv18seg0;  // IV-18 segment 0 indicators
 
 // variables for controlling display blink
 uint8_t blink;
@@ -103,7 +103,7 @@ void detect_shield(void)
 #endif
 		case(7):  // IV-18 shield (note: same value as no shield - all bits on)
 			shield = SHIELD_IV18;
-			digits = 8;
+			digits = 9;  // 9 including dot/dash
 			mpx_count = 32;
 			break;
 		default:
@@ -183,7 +183,7 @@ void display_multiplex(void)
 #endif
 			case SHIELD_IV18:
 				if (multiplex_counter == 8) 
-					write_vfd_iv18(8, g_seg0);
+					write_vfd_iv18(8, g_iv18seg0);
 				else 
 					write_vfd_iv18(multiplex_counter, calculate_segments_7(data[7-multiplex_counter]));
 				break;
@@ -328,6 +328,7 @@ void clear_screen(void)
 {
 	for (uint8_t i = 0; i < 16; i++)
 		data[i] = ' ';
+	g_iv18seg0 = 0;
 }
 
 void shift_in(char c)
@@ -336,19 +337,8 @@ void shift_in(char c)
 		data[i] = data[i+1];
 		segment_data[i] = segment_data[i+1];
 	}
-
 	data[7] = c;
 	segment_data[7] = 0;
-
-	/*
-	for (uint8_t i = 0; i < 15; i++) {
-		data[i] = data[i+1];
-		segment_data[i] = segment_data[i+1];
-	}
-
-	data[15] = c;
-	segment_data[15] = 0;
-	*/
 }
 
 void set_char_at(char c, uint8_t offset)
