@@ -36,20 +36,19 @@
 #define DEFAULT_BRIGHTNESS 10  // ???
 #endif // DEFAULT_BRIGHTNESS
 // volume lo/hi
-//#ifndef DEFAULT_VOLUME
-//#define DEFAULT_VOLUME 1  // HI
-//#endif // DEFAULT_VOLUME
+#ifndef DEFAULT_VOLUME
+#define DEFAULT_VOLUME 1  // HI
+#endif // DEFAULT_VOLUME
 
 uint8_t EEMEM b_brightness = DEFAULT_BRIGHTNESS;
-//uint8_t EEMEM b_volume = DEFAULT_VOLUME;
+uint8_t EEMEM b_volume = DEFAULT_VOLUME;
 
 volatile uint8_t g_brightness = 10;
-volatile int8_t g_volume = 1;  // default loud
+volatile uint8_t g_volume = 1;  // default loud
 extern uint16_t dots;
 
 uint8_t g_has_dots;
-uint8_t g_dot_flag;
-uint8_t g_dash_flag;
+uint8_t g_seg0;  // iv-18 segment 0 data
 
 void init_EEPROM(void)
 {
@@ -61,11 +60,6 @@ void init_SPI(void)
 	cli();	// disable interrupts
 	spiX_initslave(SPIMODE);
 	sei(); // enable interrupts
-	/*
-	// set up interrupt for alarm switch
-	PCICR |= (1 << PCIE2);
-	PCMSK2 |= (1 << PCINT18);
-	*/
 }
 
 /* ***
@@ -90,7 +84,7 @@ void show_address(uint8_t addr)
 *** */
 
 // scroll mode
-#define ROTATE 0 // use a rotating 4 byte buffer to store data
+#define ROTATE 0 // use a rotating n byte buffer to store data
 #define SCROLL 1  // scroll left each time a byte is received
 
 uint8_t scroll_mode = ROTATE;
@@ -113,25 +107,26 @@ void processSPI(void)
 	b = spi_xfer(0);
 	
 	switch (b) {
-		case 0x80: // set brightness
-			c = spi_xfer(g_brightness);  // send old value back
-			if (c < 11) {
-				set_brightness(c);
-				g_brightness = c;
-				eeprom_write_byte(&b_brightness, c);
-			}
+		case 0x80: // sync
+			spi_xfer(0x80);  // send same code back
 			break;
-		case 0x82: // clear
+		case 0x81: // clear
 			clear_screen();
 			counter = 0;
 			dots = 0;
 			break;
-		case 0x83: // set scroll mode
+		case 0x82: // get/set brightness
+			c = spi_xfer(g_brightness);  // send old value back
+			if (c < 11) {
+				g_brightness = c;
+				eeprom_write_byte(&b_brightness, c);
+				set_brightness(c);
+			}
+			break;
+		case 0x83: // set scroll mode - 0 = ROTATE, 1 = SCROLL
 			c = spi_xfer(0);
-			if (c == 0)
-				scroll_mode = ROTATE;
-			else
-				scroll_mode = SCROLL;
+			if (c<2)
+				scroll_mode = c;
 			break;
 #ifdef segment_data
 		case 0x84: // receive segment data
@@ -152,23 +147,11 @@ void processSPI(void)
 		case 0x85: // set dots (the four bits of the second byte controls dots individually)
 			dots = spi_xfer(0);
 			break;
-		case 0x86: // set dot indicator
-			g_dot_flag = spi_xfer(0);
+		case 0x86: // set IV-18 segment 0 indicators
+			g_seg0 = spi_xfer(0);
 			break;
-		case 0x87: // set dash indicator
-			g_dash_flag = spi_xfer(0);
-			break;
-#ifdef set_number
-		case 0x88: // display integer
-			{
-				uint8_t i1 = spi_xfer(0);
-				uint8_t i2 = spi_xfer(0);
-				uint16_t i = (i2 << 8) + i1;
-				set_number(i);
-			}
-			break;
-#endif
-		case 0x89: // set position (only valid for ROTATE mode)
+
+			case 0x89: // set position (only valid for ROTATE mode)
 			counter = spi_xfer(0);
 			break;
 		case 0x8a: // get firmware revision
@@ -181,24 +164,23 @@ void processSPI(void)
 			spi_xfer(get_shield());  
 			break;
 
-		case 0x90: // set volume
+		case 0x90: // get/set volume
 			c = spi_xfer(g_volume);  // send old value back
 			if (c<2) {
 				g_volume = c;
-//				eeprom_write_byte(&b_volume, c);
+				eeprom_write_byte(&b_volume, c);
+				piezo_init();
 			}
 			break;
 		case 0x91: // beep tone/10, time/10
 			c = spi_xfer(0);
 			d = spi_xfer(0);
-			beep(c<<4, d<<4);
-			spi_xfer(1); // signal complete
+			beep(c*10, d*10);
 			break;
 		case 0x92: // tick
 			tick();
-			spi_xfer(1); // signal complete
 			break;
-
+	
 		default:
 			if (b >= 0x80) break; // anything above 0x80 is considered a reserved command and is ignored
 
@@ -236,7 +218,7 @@ void main(void)
 
 	g_brightness = eeprom_read_byte(&b_brightness);
 	display_init(g_brightness);
-//	g_volume = eeprom_read_byte(&b_volume);
+	g_volume = eeprom_read_byte(&b_volume);
 
 #ifdef DEMO
 	set_char_at(' ', 0);
@@ -275,11 +257,11 @@ void main(void)
 	_delay_ms(200);
 
 	piezo_init();
-	beep(440, 200);
-	_delay_ms(100);
-	beep(880, 200);
-	_delay_ms(100);
-	beep(440, 200);
+	beep(440, 75);
+	_delay_ms(75);
+	beep(880, 75);
+	_delay_ms(75);
+	beep(440, 75);
 
 	// clear display
 	clear_screen();

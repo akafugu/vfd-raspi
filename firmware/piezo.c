@@ -35,10 +35,8 @@ void piezo_init(void) {
 void beep(uint16_t freq, uint16_t dur) {
   // set the PWM output to match the desired frequency
   ICR1 = (F_CPU/8)/freq;  // set Top
-//  ICR1 = 1000000/freq;  // set Top
   // 50% duty cycle square wave
   OCR1A = OCR1B = ICR1/2;
-   
   TCCR1B |= _BV(CS11); // connect clock/8 to turn speaker on
   // beep for the requested time
   _delay_ms(dur);
@@ -51,7 +49,7 @@ void beep(uint16_t freq, uint16_t dur) {
 // This makes the speaker tick, it doesnt use PWM
 // instead it just flicks the piezo
 void tick(void) {
-  TCCR1A = 0;
+  TCCR1A = 0;  // turn pwm off 
   TCCR1B = 0;
   // Send a pulse thru both pins, alternating
   PEZ_PORT |= _BV(PEZ1);
@@ -60,14 +58,15 @@ void tick(void) {
   PEZ_PORT |= _BV(PEZ2);
   PEZ_PORT &= ~_BV(PEZ1);
   _delay_ms(5);
-  // turn them both off
-  PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
-	// restore volume setting - 12oct12/wbp
-  TCCR1A = _BV(COM1B1) | _BV(COM1B0) | _BV(WGM11);
-  if (g_volume) {  // 12oct12/wbp
-    TCCR1A |= _BV(COM1A1);
-  } 
-  TCCR1B = _BV(WGM13) | _BV(WGM12);
+	piezo_init();  // re-enable pwm
+//  // turn them both off
+//  PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
+//	// restore volume setting - 12oct12/wbp
+//  TCCR1A = _BV(COM1B1) | _BV(COM1B0) | _BV(WGM11);
+//  TCCR1B = _BV(WGM13) | _BV(WGM12);
+//  if (g_volume) {  // 12oct12/wbp
+//    TCCR1A |= _BV(COM1A1);
+//  } 
 }
 
 void alarm(void)

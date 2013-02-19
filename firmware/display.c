@@ -20,6 +20,7 @@
 
 #define iv17_support
 #define iv6_support
+//#define iv22_support
 
 void write_vfd_iv6(uint8_t digit, uint8_t segments);
 void write_vfd_iv17(uint8_t digit, uint16_t segments);
@@ -45,8 +46,7 @@ uint8_t multiplex_counter = 0;
 // globals from main.c
 extern uint8_t g_brightness;
 extern uint8_t g_has_dots;
-extern uint8_t g_dot_flag;
-extern uint8_t g_dash_flag;
+extern uint8_t g_seg0;  // IV-18 segment 0 indicators
 
 // variables for controlling display blink
 uint8_t blink;
@@ -166,76 +166,38 @@ void set_blink(bool on)
 	if (!blink) display_on = 1;
 }
 
-#ifdef iv17_support
-// display multiplexing routine for IV17 shield: run once every 1 ms
-void display_multiplex_iv17(void)
-{
-	clear_display();
-	if (display_on) {
-		write_vfd_iv17(multiplex_counter, calculate_segments_7(data[multiplex_counter]));
-	}
-	multiplex_counter++;
-	// g_brightness == 1 thru 10
-	if (multiplex_counter == (4 + (18 - (g_brightness-1)*2))) multiplex_counter = 0;
-}
-#endif
-
-#ifdef iv6_support
-// display multiplexing routine for IV6 shield: run once every 2ms
-void display_multiplex_iv6(void)
-{
-	clear_display();
-	if (display_on) {
-		write_vfd_iv6(multiplex_counter, calculate_segments_7(data[multiplex_counter]));
-	}
-	multiplex_counter++;
-	if (multiplex_counter == 6) multiplex_counter = 0;
-}
-#endif
-
-void display_multiplex_iv18(void)
-{
-	uint8_t seg = 0;
-	clear_display();
-	if (display_on) {
-		if (multiplex_counter == 8) {
-			if (g_dot_flag)
-				seg = (1<<7);
-			if (g_dash_flag)
-				seg = (1<<6);
-			write_vfd_iv18(8, seg);
-		}
-		else 
-			write_vfd_iv18(multiplex_counter, calculate_segments_7(data[7-multiplex_counter]));
-	}
-	multiplex_counter++;
-	if (multiplex_counter == 9) multiplex_counter = 0;
-}
-
 void display_multiplex(void)
 {
-	switch (shield) {
+	clear_display();
+	if (display_on) {
+		switch (shield) {
 #ifdef iv6_support
-		case SHIELD_IV6:
-			display_multiplex_iv6();
-			break;
+			case SHIELD_IV6:
+				write_vfd_iv6(multiplex_counter, calculate_segments_7(data[multiplex_counter]));
+				break;
 #endif
 #ifdef iv17_support
-		case SHIELD_IV17:
-			display_multiplex_iv17();
-			break;
+			case SHIELD_IV17:
+				write_vfd_iv17(multiplex_counter, calculate_segments_7(data[multiplex_counter]));
+				break;
 #endif
-		case SHIELD_IV18:
-			display_multiplex_iv18();
-			break;
+			case SHIELD_IV18:
+				if (multiplex_counter == 8) 
+					write_vfd_iv18(8, g_seg0);
+				else 
+					write_vfd_iv18(multiplex_counter, calculate_segments_7(data[7-multiplex_counter]));
+				break;
 #ifdef iv22_support
-		case SHIELD_IV22:
-			display_multiplex_iv22();
-			break;
+			case SHIELD_IV22:
+				display_multiplex_iv22();
+				break;
 #endif
-		default:
-			break;
+			default:
+				break;
+		}
 	}
+	multiplex_counter++;
+	if (multiplex_counter == digits) multiplex_counter = 0;
 	STROBE_HIGH;  // Pulse Strobe to update Latch data
 	STROBE_LOW;	
 }
