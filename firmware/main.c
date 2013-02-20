@@ -46,6 +46,7 @@ uint8_t EEMEM b_volume = DEFAULT_VOLUME;
 volatile uint8_t g_brightness = 10;
 volatile uint8_t g_volume = 1;  // default loud
 extern uint16_t dots;
+extern uint16_t beep_counter;
 
 uint8_t g_has_dots;
 uint8_t g_iv18seg0;  // iv-18 segment 0 data
@@ -151,7 +152,7 @@ void processSPI(void)
 			g_iv18seg0 = spi_xfer(0);
 			break;
 
-			case 0x89: // set position (only valid for ROTATE mode)
+		case 0x89: // set position (only valid for ROTATE mode)
 			counter = spi_xfer(0);
 			break;
 		case 0x8a: // get firmware revision
@@ -177,7 +178,10 @@ void processSPI(void)
 			d = spi_xfer(0);
 			beep(c*10, d*10);
 			break;
-		case 0x92: // tick
+		case 0x92: // get beep status - 1 if busy
+			c = spi_xfer(beep_counter>0);
+			break;
+		case 0x93: // tick
 			tick();
 			break;
 	
@@ -258,9 +262,9 @@ void main(void)
 
 	piezo_init();
 	beep(440, 75);
-	_delay_ms(75);
-	beep(880, 75);
-	_delay_ms(75);
+	_delay_ms(100);
+	beep(1320, 75);
+	_delay_ms(100);
 	beep(440, 75);
 
 	// clear display

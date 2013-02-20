@@ -15,8 +15,11 @@
 
 #include "piezo.h"
 #include <util/delay.h>
+#include <avr/interrupt.h>
 
 extern uint8_t g_volume;
+uint16_t beep_counter = 0;
+#define F_DIV F_CPU/8
 
 // piezo code from: https://github.com/adafruit/Ice-Tube-Clock
 // WGM13 + WGM12 + WGM11 = Fast PWM with ICR1 as Top
@@ -31,21 +34,40 @@ void piezo_init(void) {
   ICR1 = 250;
   OCR1B = OCR1A = ICR1 / 2;
 }
-
+// F_CPU = 8000000 (8 MHz), TIMER1 clock is 1000000 (1 MHz)
+// ICR1 (Top) = 1000000/freq - interrupt at freq to pulse spkr
+// TIMER1 interrupt rate = freq = 1000/freq ms
+// beep_timer = duration / 1000 * 1/freq = dur * freq / 1000
+// at low frequencies, time resolution is lower
+// example: at 100 hz, beep timer resolution is 10 ms
 void beep(uint16_t freq, uint16_t dur) {
   // set the PWM output to match the desired frequency
-  ICR1 = (F_CPU/8)/freq;  // set Top
+//  ICR1 = F_CPU/8/freq;  // set Top
+  ICR1 = F_DIV/freq;  // set Top
   // 50% duty cycle square wave
   OCR1A = OCR1B = ICR1/2;
-  TCCR1B |= _BV(CS11); // connect clock/8 to turn speaker on
+  TCCR1B |= _BV(CS11); // connect clock to turn speaker on
   // beep for the requested time
-  _delay_ms(dur);
+	beep_counter = (long)dur * freq  / 1000;  // set delay counter
+	TCNT1 = 0; // Initialize counter
+	TIMSK |= (1<<TOIE1); // Enable Timer1 Overflow Interrupt
+}
+
+void beepEnd(void) {
+	TIMSK &= ~(1<<TOIE1);  // disable Timer1 ???
   TCCR1B &= ~_BV(CS11); // disconnect clock source to turn it off
-  PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
   // turn speaker off
   PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
 }
 
+ISR(TIMER1_OVF_vect)
+{
+	if (beep_counter > 0)
+		beep_counter--;
+	else {
+		beepEnd();
+	}
+}
 // This makes the speaker tick, it doesnt use PWM
 // instead it just flicks the piezo
 void tick(void) {
@@ -68,9 +90,3 @@ void tick(void) {
 //    TCCR1A |= _BV(COM1A1);
 //  } 
 }
-
-void alarm(void)
-{
-	beep(500, 1);
-}
-

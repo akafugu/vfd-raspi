@@ -40,7 +40,6 @@ uint8_t digits = 8;
 uint8_t mpx_count = 8;
 volatile char data[16]; // Digit data
 volatile char segment_data[16]; // Segment data
-uint8_t us_counter = 0; // microsecond counter
 uint8_t multiplex_counter = 0;
 
 // globals from main.c
@@ -203,7 +202,6 @@ void display_multiplex(void)
 }
 
 uint8_t interrupt_counter = 0;
-uint16_t button_counter = 0;
 
 // 1 click = 1us. Overflow every 255 us (adjust for 8 mhz clock???)
 ISR(TIMER0_OVF_vect)

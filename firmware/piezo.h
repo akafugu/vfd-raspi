@@ -24,7 +24,6 @@
 #define PEZ_DDR 	DDRB
 
 void piezo_init(void);
-void alarm(void);
 void beep(uint16_t freq, uint16_t dur);
 void tick(void);
 

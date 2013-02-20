@@ -7,8 +7,9 @@ import spidev
 
 # ===========================================================================
 # SPI Clock Example using hardware SPI with SPIDEV
-# 16 February 2013
 # William B Phelps - wm@usa.net
+# created 16 February 2013
+# updated 20 February 2013 - rewrite piezo/beep
 # ===========================================================================
 
 #CE0  = 8
@@ -61,7 +62,7 @@ GPIO.setup(S3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 spi = spidev.SpiDev()
 spi.open(0,0)
 spi.mode = 0
-spi.max_speed_hz = 200000 # 200khz
+#spi.max_speed_hz = 200000 # 200khz
 
 def SPI(b):
 	b1 = [b]
@@ -124,29 +125,32 @@ def beep(b, c):
 	SPI(0x91) # beep
 	SPI(b/10) # max 2550 hz
 	SPI(c/10) # max 2550 ms 
-	time.sleep((c/1000) + 0.200)
-	b1 = 0
-	while b1 != 0x80:
-		b1 = SPI(0x80)  # wait for beep to finish
-#	print "beep " + str(b1)
-#	time.sleep(0.100) # ???
+#	time.sleep(c/1000 + 0.1) # wait for beep
 def tick():
-	SPI(0x92)  # tick the speaker
+	SPI(0x93)  # tick the speaker
 	b1 = 0
 	time.sleep(0.020) # tick takes time
 
+def display(pos, str):
+	setPos(pos)
+	SPIwrite(str)
+	
 print "Raspi VFD test1"
 print "shield " + str(getShield()) + ", digits " + str(getDigits())
 print "volume " + str(getVol()) + ", bright " + str(getBrt())
 
-beep(440,50)
-time.sleep(0.025)
-beep(880,50)
-time.sleep(0.025)
-beep(440,50)
+# test beep interaction with SPI
+beep(440,100)
+display(5,"440")
+time.sleep(0.2)
+beep(880,100)
+display(5,"880")
+time.sleep(0.2)
+beep(440,100)
+display(5,"440")
 
 clear()
-SPIwrite("01234567")
+display(0,"01234567")
 #setDots(0b11111111)
 time.sleep(1)
 for b in range(0,10):
@@ -210,17 +214,15 @@ def doMenu():
 	global menuState, menuTime
 	menuState += 1
 	setDots(0b00000000)
-	setPos(0)
-	SPIwrite(menuNames[menuState])
+	display(0,menuNames[menuState])
 	if (menuState == len(menuNames)-1):
 		menuEnd()
 
 def showAlarm():
-	setPos(0)
 #	timestr = '  {:02}:{:02}  '.format(g_alarmTime)
 	timestr = '{:>8}'.format(alarmTime)
 	setDots(0b00000100)
-	SPIwrite(timestr)
+	display(0,timestr)
 	
 def actAlarm(update):
 	global alarmSet, alarmSetCnt, alarmSpeed
@@ -234,8 +236,7 @@ def actBright(update):
 	if (update): # not first time here?
 		bright = (bright+1) if (bright<10) else 0
 	s = '{:>8}'.format(bright)
-	setPos(0)
-	SPIwrite(s)
+	display(0,s)
 	setBrt(bright)
 def actVol(update):
 	volume = getVol()
@@ -243,8 +244,7 @@ def actVol(update):
 		volume = 1 if (volume == 0) else 0
 		setVol(volume)
 	s = '     hi' if (volume == 1) else '     lo'
-	setPos(0)
-	SPIwrite(s)
+	display(0,s)
 	beep(440, 100)
 def actEnd(update):
 	s = 0 # python nop?
@@ -263,10 +263,9 @@ def doAction():  # S2 pushed
 		showDate()
 
 def showDate():
-	setPos(0)
 	now = datetime.now()
 	timestr = '{:%y-%m-%d}'.format(now)
-	SPIwrite(timestr)
+	display(0,timestr)
 	# Toggle dots during date display
 	if (now.second % 2):
 		setDots(0b00000001)
@@ -275,14 +274,13 @@ def showDate():
 
 def showTime(now):
 	global lastShowTime
-	setPos(0)
 	if (now.second != lastShowTime.second): # run once a second
 		lastShowTime = now
 		if (now.second >= 57) and (now.second <= 59): # show date
 			showDate()
 		else:
 			timestr = '{:  %I%M%S}'.format(now)
-			SPIwrite(timestr)
+			display(0,timestr)
 			# Toggle dots
 			if (now.second % 2):
 				setDots(0b00010101)
@@ -302,7 +300,7 @@ def showTime(now):
 
 def sayBye():
 	clear()
-	SPIwrite("  bye  ")
+	display(0,"  bye  ")
 	time.sleep(1.0)
 	clear() # clear
 	exit(0)
@@ -323,8 +321,8 @@ def alarmEnable(set):
 		showAlarm()
 		time.sleep(1)
 	else:
-		setPos(0)
-		SPIwrite("alrm off")
+		setDots(0b00000000)
+		display(0,"alrm off")
 		time.sleep(1)
 	
 def setAlarm():
@@ -380,11 +378,11 @@ while(True):
 	else: # not in menu, show the time
 		now = datetime.now()
 		if (now.second != then.second): # reduce SPI traffic
+			checkAlarm(now) # must come after date/time display (beep bug?) ???
 			then = now # now & then are one
 			if (S2state):
 				showDate()
 			else:
 				showTime(now)
-			checkAlarm(now) # must come after date/time display (beep bug?)
 	# Wait 100 ms
 	time.sleep(0.1)
