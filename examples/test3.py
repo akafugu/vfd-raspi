@@ -3,7 +3,8 @@
 import RPi.GPIO as GPIO
 import sched, signal, time
 from datetime import datetime
-import spidev
+from alarmTime import alarmTime
+from vfdspi import *
 
 # ===========================================================================
 # SPI Clock Example using hardware SPI with SPIDEV
@@ -21,32 +22,6 @@ S1 = 22
 S2 = 27
 S3 = 17  # alarm on/off
 
-IV18seg0 = 0 # iv-18 segment 0 bits
-
-class alarmTime(object): # class for alarm time, handles minute/hour wrap
-	def __init__(self, time):
-		self.time = time
-	@property
-	def time(self):
-		return self.__dict__['time']
-	@property
-	def hour(self):
-		return int(self.__dict__['time']/60)
-	@property
-	def minute(self):
-		return self.__dict__['time']%60
-	@time.setter
-	def time(self, value):
-		self.__dict__['time'] = value%1440
-	@hour.setter
-	def hour(self, value):
-		self.__dict__['time'] = value*60 + self.time%60
-	@minute.setter
-	def minute(self, value):
-		self.__dict__['time'] = value%60 + int(self.time/60)*60
-	def __str__(self):
-		return '{:02}{:02}'.format(self.hour, self.minute)
-
 alarmTime = alarmTime(7*60)
 alarmSet = False # on if setting alarm
 alarmEnabled = False # alarm switch in On position
@@ -58,96 +33,22 @@ GPIO.setwarnings(False)
 GPIO.setup(S1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(S2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(S3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-spi = spidev.SpiDev()
-spi.open(0,0)
-spi.mode = 0
-#spi.max_speed_hz = 200000 # 200khz
-
-def SPI(b):
-	b1 = [b]
-	b2 = spi.xfer(b1)
-	time.sleep(0.001)  # delay needed to keep SPI in sync
-	return b2[0]
-
-def clear():
-	SPI(0x81)
-def sync():
-	SPI(0x80)
-def getBrt():
-	SPI(0x82)  # brightness
-	b = SPI(255) # get current value
-	return b
-def setBrt(b):
-	SPI(0x82)  # brightness
-	SPI(b)
-def SPIwrite(str):
-	for i in range(len(str)):
-		SPI(ord(str[i]))
-def getDigits():
-	SPI(0x8B) # request digits
-	b = SPI(0)
-	return b
-def getShield():
-	SPI(0x8C) # request shield
-	b = SPI(0)
-	return b
-def setDots(d):
-	SPI(0x85)  # dots
-	SPI(d)
-def setPos(n):
-	SPI(0x89)  # position
-	SPI(n)
-def setIV18Dot(b):
-	global IV18seg0
-	if (b>0):
-		IV18seg0 = 0b10000000 | IV18seg0
-	else:
-		IV18seg0 = 0b01111111 & IV18seg0
-	SPI(0x86)  # dot flag
-	SPI(IV18seg0)
-def setIV18Dash(b):
-	global IV18seg0
-	if (b>0):
-		IV18seg0 = 0b01000000 | IV18seg0
-	else:
-		IV18seg0 = 0b10111111 & IV18seg0
-	SPI(0x86)  # dash flag
-	SPI(IV18seg0)
-def getVol():
-	SPI(0x90)  # volume
-	b = SPI(255)  # get current value
-	return(b)
-def setVol(b):
-	SPI(0x90)  # volume
-	SPI(b)  # set new value
-def beep(b, c):
-	SPI(0x91) # beep
-	SPI(b/10) # max 2550 hz
-	SPI(c/10) # max 2550 ms 
-#	time.sleep(c/1000 + 0.1) # wait for beep
-def tick():
-	SPI(0x93)  # tick the speaker
-	b1 = 0
-	time.sleep(0.020) # tick takes time
-
-def display(pos, str):
-	setPos(pos)
-	SPIwrite(str)
 	
 print "Raspi VFD test1"
 print "shield " + str(getShield()) + ", digits " + str(getDigits())
 print "volume " + str(getVol()) + ", bright " + str(getBrt())
 
 # test beep interaction with SPI
-beep(440,100)
+clear()
+beep(440, 100, False)
 display(5,"440")
 time.sleep(0.2)
-beep(880,100)
+beep(880, 100, False)
 display(5,"880")
 time.sleep(0.2)
-beep(440,100)
+beep(440, 100, False)
 display(5,"440")
+time.sleep(1)
 
 clear()
 display(0,"01234567")
@@ -240,10 +141,10 @@ def actBright(update):
 	setBrt(bright)
 def actVol(update):
 	volume = getVol()
-	if (update): # not first time here?
-		volume = 1 if (volume == 0) else 0
+	if (update): # not first time here
+		volume = (volume+1) if (volume < 10) else 0
 		setVol(volume)
-	s = '     hi' if (volume == 1) else '     lo'
+	s = '{:>8}'.format(volume)
 	display(0,s)
 	beep(440, 100)
 def actEnd(update):

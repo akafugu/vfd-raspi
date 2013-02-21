@@ -1,6 +1,7 @@
 /*
  * VFD Modular Clock
  * (C) 2011 Akafugu Corporation
+ * (C) 2013 William B Phelps
  *
  * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
@@ -21,19 +22,14 @@ extern uint8_t g_volume;
 uint16_t beep_counter = 0;
 #define F_DIV F_CPU/8
 
-// piezo code from: https://github.com/adafruit/Ice-Tube-Clock
 // WGM13 + WGM12 + WGM11 = Fast PWM with ICR1 as Top
 void piezo_init(void) {
 	PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);  // speaker off
 	PEZ_DDR |= _BV(PEZ1) | _BV(PEZ2);
-	TCCR1A = _BV(COM1B1) | _BV(COM1B0) | _BV(WGM11);  // set OC1B high on match, fast pwm
+	TCCR1A = _BV(COM1A1) | _BV(COM1B1) | _BV(COM1B0) | _BV(WGM11);  // set OC1B on match, clear COM1A1, fast pwm
 	TCCR1B = _BV(WGM13) | _BV(WGM12);
-	if (g_volume) // high volume
-		TCCR1A |= _BV(COM1A1);  // toggle both pins (clear OC1A on match)
-  // start at 4khz:  250 * 8 multiplier * 4000 = 8mhz
-  ICR1 = 250;
-  OCR1B = OCR1A = ICR1 / 2;
 }
+
 // F_CPU = 8000000 (8 MHz), TIMER1 clock is 1000000 (1 MHz)
 // ICR1 (Top) = 1000000/freq - interrupt at freq to pulse spkr
 // TIMER1 interrupt rate = freq = 1000/freq ms
@@ -42,10 +38,11 @@ void piezo_init(void) {
 // example: at 100 hz, beep timer resolution is 10 ms
 void beep(uint16_t freq, uint16_t dur) {
   // set the PWM output to match the desired frequency
-//  ICR1 = F_CPU/8/freq;  // set Top
-  ICR1 = F_DIV/freq;  // set Top
-  // 50% duty cycle square wave
-  OCR1A = OCR1B = ICR1/2;
+  uint16_t top = F_DIV/freq;  // set Top
+	uint16_t cm = (top>>8) * (g_volume+2);  // set duty cycle based on volume
+	ICR1 = top;
+	OCR1A = cm;
+  OCR1B = top - OCR1A;
   TCCR1B |= _BV(CS11); // connect clock to turn speaker on
   // beep for the requested time
 	beep_counter = (long)dur * freq  / 1000;  // set delay counter

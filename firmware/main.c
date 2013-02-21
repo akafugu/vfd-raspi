@@ -1,6 +1,7 @@
 /*
  * VFD Modular Clock - Raspberry PI edition - SPI slave
  * (C) 2011-13 Akafugu Corporation
+ * (C) 2013 William B Phelps
  *
  * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
@@ -37,14 +38,14 @@
 #endif // DEFAULT_BRIGHTNESS
 // volume lo/hi
 #ifndef DEFAULT_VOLUME
-#define DEFAULT_VOLUME 1  // HI
+#define DEFAULT_VOLUME 10 // HI
 #endif // DEFAULT_VOLUME
 
 uint8_t EEMEM b_brightness = DEFAULT_BRIGHTNESS;
 uint8_t EEMEM b_volume = DEFAULT_VOLUME;
 
 volatile uint8_t g_brightness = 10;
-volatile uint8_t g_volume = 1;  // default loud
+volatile uint8_t g_volume = 10;  // default loud
 extern uint16_t dots;
 extern uint16_t beep_counter;
 
@@ -118,11 +119,11 @@ void processSPI(void)
 			break;
 		case 0x82: // get/set brightness
 			c = spi_xfer(g_brightness);  // send old value back
-			if (c < 11) {
-				g_brightness = c;
-				eeprom_write_byte(&b_brightness, c);
-				set_brightness(c);
-			}
+			if (c > 10)
+				c = 10;
+			g_brightness = c;
+			eeprom_write_byte(&b_brightness, c);
+			set_brightness(c);
 			break;
 		case 0x83: // set scroll mode - 0 = ROTATE, 1 = SCROLL
 			c = spi_xfer(0);
@@ -167,11 +168,10 @@ void processSPI(void)
 
 		case 0x90: // get/set volume
 			c = spi_xfer(g_volume);  // send old value back
-			if (c<2) {
-				g_volume = c;
-				eeprom_write_byte(&b_volume, c);
-				piezo_init();
-			}
+			if (c>10) c = 10;
+			g_volume = c;
+			eeprom_write_byte(&b_volume, c);
+			piezo_init();
 			break;
 		case 0x91: // beep tone/10, time/10
 			c = spi_xfer(0);
@@ -261,11 +261,11 @@ void main(void)
 	_delay_ms(200);
 
 	piezo_init();
-	beep(440, 75);
-	_delay_ms(100);
-	beep(1320, 75);
-	_delay_ms(100);
-	beep(440, 75);
+	beep(440, 100);
+	_delay_ms(150);
+	beep(1320, 100);
+	_delay_ms(150);
+	beep(440, 100);
 
 	// clear display
 	clear_screen();
