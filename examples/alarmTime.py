@@ -1,4 +1,12 @@
 # alarmTime class 
+
+# ===========================================================================
+# SPI Clock Example using hardware SPI with SPIDEV - https://github.com/doceme/py-spidev
+# William B Phelps - wm@usa.net
+# created 20 February 2013
+# updated 24 February 2013 - rewrite piezo/beep
+# ===========================================================================
+
 # simplified time class for alarm time, with
 #  time in seconds, hour, minute
 

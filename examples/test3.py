@@ -1,17 +1,17 @@
 #!/usr/bin/python
 
+# ===========================================================================
+# SPI Clock Example using hardware SPI with SPIDEV - https://github.com/doceme/py-spidev
+# William B Phelps - wm@usa.net
+# created 16 February 2013
+# updated 24 February 2013 - rewrite piezo/beep
+# ===========================================================================
+
 import RPi.GPIO as GPIO
 import sched, signal, time
 from datetime import datetime
 from alarmTime import alarmTime
 from vfdspi import *
-
-# ===========================================================================
-# SPI Clock Example using hardware SPI with SPIDEV
-# William B Phelps - wm@usa.net
-# created 16 February 2013
-# updated 20 February 2013 - rewrite piezo/beep
-# ===========================================================================
 
 #CE0  = 8
 #MISO = 9
@@ -27,6 +27,9 @@ alarmSet = False # on if setting alarm
 alarmEnabled = False # alarm switch in On position
 alarmOn = False # is alarm beeping?
 
+digits = getDigits() # size of display
+shield = getShield() # shield type
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
@@ -35,23 +38,23 @@ GPIO.setup(S2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(S3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 	
 print "Raspi VFD test1"
-print "shield " + str(getShield()) + ", digits " + str(getDigits())
+print "shield " + str(shield) + ", digits " + str(digits)
 print "volume " + str(getVol()) + ", bright " + str(getBrt())
 
 # test beep interaction with SPI
 clear()
 beep(440, 100, False)
-display(5,"440")
+display(0," 440")
 time.sleep(0.2)
 beep(880, 100, False)
-display(5,"880")
+display(0," 880")
 time.sleep(0.2)
 beep(440, 100, False)
-display(5,"440")
+display(0," 440")
 time.sleep(1)
 
 clear()
-display(0,"01234567")
+scroll(0,"0123456789", 0, 0.2)
 #setDots(0b11111111)
 time.sleep(1)
 for b in range(0,10):
@@ -99,7 +102,9 @@ def chkButtons():
 			alarmEnable(False)
 		S3state = st3
 
-menuNames = ['', 'alarm   ', 'bright  ', 'volume  ', 'end     ']
+menuNames4 = ['', 'alrm', 'brt ', 'vol ', 'end ']
+menuNames6 = ['', 'alarm ', 'bright', 'volume', 'end   ']
+menuNames8 = ['', 'alarm   ', 'bright  ', 'volume  ', 'end     ']
 menuState = 0
 actionState = 0
 menuTime = time.time
@@ -114,16 +119,22 @@ def menuEnd():
 def doMenu():
 	global menuState, menuTime
 	menuState += 1
-	setDots(0b00000000)
-	display(0,menuNames[menuState])
-	if (menuState == len(menuNames)-1):
+	if (digits == 4):
+		display(0,menuNames4[menuState])
+	else:
+		setDots(0b00000000)
+		display(0,menuNames8[menuState])
+	if (menuState == len(menuNames4)-1):
 		menuEnd()
 
 def showAlarm():
-#	timestr = '  {:02}:{:02}  '.format(g_alarmTime)
-	timestr = '{:>8}'.format(alarmTime)
-	setDots(0b00000100)
-	display(0,timestr)
+	if (digits == 4):
+		timestr = '{:>4}'.format(alarmTime)
+		display(0,timestr)
+	else:
+		timestr = '{:>8}'.format(alarmTime)
+		display(0,timestr)
+		setDots(0b00000100)
 	
 def actAlarm(update):
 	global alarmSet, alarmSetCnt, alarmSpeed
@@ -136,7 +147,7 @@ def actBright(update):
 	bright = getBrt()
 	if (update): # not first time here?
 		bright = (bright+1) if (bright<10) else 0
-	s = '{:>8}'.format(bright)
+	s = '{:>4}'.format(bright)
 	display(0,s)
 	setBrt(bright)
 def actVol(update):
@@ -144,7 +155,7 @@ def actVol(update):
 	if (update): # not first time here
 		volume = (volume+1) if (volume < 10) else 0
 		setVol(volume)
-	s = '{:>8}'.format(volume)
+	s = '{:>4}'.format(volume)
 	display(0,s)
 	beep(440, 100)
 def actEnd(update):
@@ -165,13 +176,18 @@ def doAction():  # S2 pushed
 
 def showDate():
 	now = datetime.now()
-	timestr = '{:%y-%m-%d}'.format(now)
-	display(0,timestr)
-	# Toggle dots during date display
-	if (now.second % 2):
-		setDots(0b00000001)
+	timestr = '{:%y-%m-%d}'.format(now) # date
+	if (digits == 4):
+		scroll(0,"  " + timestr,2, 0.3)
+		timestr = '{:%I%M}'.format(now) # time
+		scroll(0,timestr, 0, 0.3) # scroll time back in
 	else:
-		setDots(0b00000000)
+		display(0,timestr)
+		# Toggle dots during date display
+		if (now.second % 2):
+			setDots(0b00000001)
+		else:
+			setDots(0b00000000)
 
 def showTime(now):
 	global lastShowTime
@@ -180,14 +196,18 @@ def showTime(now):
 		if (now.second >= 57) and (now.second <= 59): # show date
 			showDate()
 		else:
-			timestr = '{:  %I%M%S}'.format(now)
-			display(0,timestr)
-			# Toggle dots
-			if (now.second % 2):
-				setDots(0b00010101)
+			if (digits == 4):
+				timestr = '{:%I%M}'.format(now)
+				display(0,timestr)
 			else:
-				setDots(0b00010100)
-		setIV18Dot(now.hour > 11)
+				timestr = '{:  %I%M%S}'.format(now)
+				display(0,timestr)
+				# Toggle dots
+				if (now.second % 2):
+					setDots(0b00010101)
+				else:
+					setDots(0b00010100)
+				setIV18Dot(now.hour > 11)
 		# adjust brightness according to time
 		if (now.second == 0):  # once a minute
 			setBrt(2) # dim briefly to show top of minute
@@ -201,7 +221,10 @@ def showTime(now):
 
 def sayBye():
 	clear()
-	display(0,"  bye  ")
+	if (digits == 4):
+		display(0, "bye ")
+	else:
+		display(0,"  bye  ")
 	time.sleep(1.0)
 	clear() # clear
 	exit(0)
@@ -222,8 +245,11 @@ def alarmEnable(set):
 		showAlarm()
 		time.sleep(1)
 	else:
-		setDots(0b00000000)
-		display(0,"alrm off")
+		if (shield == 1):
+			scroll(0,"alrm off")
+		else:
+			setDots(0b00000000)
+			display(0,"alrm off")
 		time.sleep(1)
 	
 def setAlarm():

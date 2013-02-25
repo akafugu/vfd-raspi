@@ -36,16 +36,16 @@
 #ifndef DEFAULT_BRIGHTNESS
 #define DEFAULT_BRIGHTNESS 10  // ???
 #endif // DEFAULT_BRIGHTNESS
-// volume lo/hi
+// volume 0-128
 #ifndef DEFAULT_VOLUME
-#define DEFAULT_VOLUME 10 // HI
+#define DEFAULT_VOLUME 128 // HI
 #endif // DEFAULT_VOLUME
 
 uint8_t EEMEM b_brightness = DEFAULT_BRIGHTNESS;
 uint8_t EEMEM b_volume = DEFAULT_VOLUME;
 
 volatile uint8_t g_brightness = 10;
-volatile uint8_t g_volume = 10;  // default loud
+volatile uint8_t g_volume = 128;  // default loud
 extern uint16_t dots;
 extern uint16_t beep_counter;
 
@@ -104,7 +104,7 @@ uint8_t spi_xfer(uint8_t b)
 
 void processSPI(void)
 {
-	uint8_t b, c, d;
+	uint8_t b, c;
 
 	b = spi_xfer(0);
 	
@@ -168,16 +168,21 @@ void processSPI(void)
 
 		case 0x90: // get/set volume
 			c = spi_xfer(g_volume);  // send old value back
-			if (c>10) c = 10;
+			if (c>128) c = 128;
 			g_volume = c;
 			eeprom_write_byte(&b_volume, c);
 			piezo_init();
 			break;
-		case 0x91: // beep tone/10, time/10
-			c = spi_xfer(0);
+		case 0x91: // beep tone, time
+		{
+			uint16_t f,d;
+			f = spi_xfer(0);  // 1st byte
+			f = f + (spi_xfer(0)<<8);  // 2nd byte
 			d = spi_xfer(0);
-			beep(c*10, d*10);
+			d = d + (spi_xfer(0)<<8);
+			beep(f,d);
 			break;
+		}
 		case 0x92: // get beep status - 1 if busy
 			c = spi_xfer(beep_counter>0);
 			break;
@@ -190,7 +195,7 @@ void processSPI(void)
 
 			if (scroll_mode == ROTATE) {
 				set_char_at(b, counter++);
-				if (counter >= 8) counter = 0;
+				if (counter > get_digits()) counter = 0; // wrap
 			}
 			else {
 				shift_in(b);
@@ -223,6 +228,7 @@ void main(void)
 	g_brightness = eeprom_read_byte(&b_brightness);
 	display_init(g_brightness);
 	g_volume = eeprom_read_byte(&b_volume);
+	piezo_init();
 
 #ifdef DEMO
 	set_char_at(' ', 0);
@@ -260,12 +266,11 @@ void main(void)
 	init_SPI();  // init SPI
 	_delay_ms(200);
 
-	piezo_init();
-	beep(440, 100);
-	_delay_ms(150);
-	beep(1320, 100);
-	_delay_ms(150);
-	beep(440, 100);
+	beep(3520, 100);
+	_delay_ms(100);
+	beep(7040, 100);
+	_delay_ms(100);
+	beep(3520, 100);
 
 	// clear display
 	clear_screen();

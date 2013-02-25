@@ -1,6 +1,15 @@
 #!/usr/bin/python
+
+# ===========================================================================
+# SPI Clock Example using hardware SPI with SPIDEV - https://github.com/doceme/py-spidev
+# William B Phelps - wm@usa.net
+# created 20 February 2013
+# updated 24 February 2013 - rewrite piezo/beep
+# ===========================================================================
+
 import time
 import spidev
+# https://github.com/doceme/py-spidev
 
 #CE0  = 8
 #MISO = 9
@@ -72,8 +81,10 @@ def setVol(b):
 	SPI(b)  # set new value
 def beep(f, t, w=True):
 	SPI(0x91) # beep
-	SPI(f/10) # max 2550 hz
-	SPI(t/10) # max 2550 ms 
+	SPI(f%256) # 1st byte
+	SPI(f/256) # 2nd byte
+	SPI(t%256) # 1st byte 
+	SPI(t/256) # 2nd byte
 	if (w):
 		time.sleep(t/1000.0) # wait for beep
 def tick():
@@ -81,6 +92,21 @@ def tick():
 	b1 = 0
 	time.sleep(0.020) # tick takes time
 
+def setScroll(s):
+	SPI(0x83)  # set scroll mode
+	SPI(s)  # set new value
 def display(pos, str):
+	setScroll(0)
 	setPos(pos)
 	SPIwrite(str)
+def scroll(pos, str, pad=0, dly=0.2):
+	setScroll(1)
+#	d = getDigits()
+	setPos(pos)
+	for i in range(len(str)):
+		SPI(ord(str[i]))
+		time.sleep(dly)
+	for i in range(pad): # pad with spaces
+		SPI(0x20) # space
+		time.sleep(dly)
+

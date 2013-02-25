@@ -24,10 +24,14 @@ uint16_t beep_counter = 0;
 
 // WGM13 + WGM12 + WGM11 = Fast PWM with ICR1 as Top
 void piezo_init(void) {
-	PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);  // speaker off
+//	PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);  // speaker off
+	PEZ_PORT |= _BV(PEZ1) | _BV(PEZ2);  // speaker off
 	PEZ_DDR |= _BV(PEZ1) | _BV(PEZ2);
 	TCCR1A = _BV(COM1A1) | _BV(COM1B1) | _BV(COM1B0) | _BV(WGM11);  // set OC1B on match, clear COM1A1, fast pwm
 	TCCR1B = _BV(WGM13) | _BV(WGM12);
+//  // start at 4khz:  250 * 8 multiplier * 4000 = 8mhz
+//  ICR1 = 250;
+//  OCR1B = OCR1A = ICR1 / 2;
 }
 
 // F_CPU = 8000000 (8 MHz), TIMER1 clock is 1000000 (1 MHz)
@@ -39,22 +43,25 @@ void piezo_init(void) {
 void beep(uint16_t freq, uint16_t dur) {
   // set the PWM output to match the desired frequency
   uint16_t top = F_DIV/freq;  // set Top
-	uint16_t cm = (top>>8) * (g_volume+2);  // set duty cycle based on volume
+//	uint16_t cm = (top>>8) * (g_volume+2);  // set duty cycle based on volume
+	uint16_t cm = ((uint32_t)top * (g_volume+2))>>8;  // set duty cycle based on volume
 	ICR1 = top;
 	OCR1A = cm;
   OCR1B = top - OCR1A;
-  TCCR1B |= _BV(CS11); // connect clock to turn speaker on
+//	OCR1B = cm;
   // beep for the requested time
-	beep_counter = (long)dur * freq  / 1000;  // set delay counter
+	beep_counter = (uint32_t)dur * freq  / 1000L;  // set delay counter
 	TCNT1 = 0; // Initialize counter
+  TCCR1B |= _BV(CS11); // connect clock to turn speaker on
 	TIMSK |= (1<<TOIE1); // Enable Timer1 Overflow Interrupt
 }
 
 void beepEnd(void) {
+//  PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
+  // turn speaker pins off
+	PEZ_PORT |= _BV(PEZ1) | _BV(PEZ2);  // speaker off
 	TIMSK &= ~(1<<TOIE1);  // disable Timer1 ???
   TCCR1B &= ~_BV(CS11); // disconnect clock source to turn it off
-  // turn speaker off
-  PEZ_PORT &= ~_BV(PEZ1) & ~_BV(PEZ2);
 }
 
 ISR(TIMER1_OVF_vect)

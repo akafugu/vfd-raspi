@@ -38,6 +38,7 @@ uint8_t calculate_segments_7(uint8_t character);
 enum shield_t shield = SHIELD_NONE;
 uint8_t digits = 8;
 uint8_t mpx_count = 8;
+uint8_t mpx_limit = 9;
 volatile char data[16]; // Digit data
 volatile char segment_data[16]; // Segment data
 uint8_t multiplex_counter = 0;
@@ -83,7 +84,7 @@ void detect_shield(void)
 #ifdef iv17_support
 		case(1):  // IV-17 shield
 			shield = SHIELD_IV17;
-			digits = 4;
+			mpx_limit = digits = 4;
 			mpx_count = 32;
 			g_has_dots = false;
 			break;
@@ -91,18 +92,19 @@ void detect_shield(void)
 #ifdef iv6_support
 		case(2):  // IV-6 shield
 			shield = SHIELD_IV6;
-			digits = 6;
+			mpx_limit = digits = 6;
 			break;
 #endif
 #ifdef iv22_support
 		case(6):  // IV-22 shield
 			shield = SHIELD_IV22;
-			digits = 4;
+			mpx_limit = digits = 4;
 			break;
 #endif
 		case(7):  // IV-18 shield (note: same value as no shield - all bits on)
 			shield = SHIELD_IV18;
-			digits = 9;  // 9 including dot/dash
+			digits = 8;  // 8 digits
+			mpx_limit = 9;  // 9 positions
 			mpx_count = 32;
 			break;
 		default:
@@ -177,7 +179,7 @@ void display_multiplex(void)
 #endif
 #ifdef iv17_support
 			case SHIELD_IV17:
-				write_vfd_iv17(multiplex_counter, calculate_segments_7(data[multiplex_counter]));
+				write_vfd_iv17(multiplex_counter, calculate_segments_16(data[multiplex_counter]));
 				break;
 #endif
 			case SHIELD_IV18:
@@ -196,7 +198,7 @@ void display_multiplex(void)
 		}
 	}
 	multiplex_counter++;
-	if (multiplex_counter == digits) multiplex_counter = 0;
+	if (multiplex_counter == mpx_limit) multiplex_counter = 0;
 	STROBE_HIGH;  // Pulse Strobe to update Latch data
 	STROBE_LOW;	
 }
@@ -229,7 +231,7 @@ void set_string(char* str)
 	dots = 0;
 	data[0] = data[1] = data[2] = data[3] = data[4] = data[5] = data[6] = data[7] = ' ';
 	
-	for (int i = 0; i <= digits-1; i++) {
+	for (int i = 0; i < digits; i++) {
 		if (!*str) break;
 		data[i] = *(str++);
 	}
@@ -331,12 +333,12 @@ void clear_screen(void)
 
 void shift_in(char c)
 {
-	for (uint8_t i = 0; i < 7; i++) {
+	for (uint8_t i = 0; i < digits; i++) {  // shift data[] left 1 position
 		data[i] = data[i+1];
 		segment_data[i] = segment_data[i+1];
 	}
-	data[7] = c;
-	segment_data[7] = 0;
+	data[digits-1] = c;  // append new character
+	segment_data[digits-1] = 0;
 }
 
 void set_char_at(char c, uint8_t offset)
