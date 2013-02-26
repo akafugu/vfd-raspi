@@ -4,7 +4,7 @@
 # SPI Clock Example using hardware SPI with SPIDEV - https://github.com/doceme/py-spidev
 # William B Phelps - wm@usa.net
 # created 20 February 2013
-# updated 24 February 2013 - rewrite piezo/beep
+# updated 25 February 2013 - redo scroll
 # ===========================================================================
 
 import time

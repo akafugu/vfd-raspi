@@ -4,7 +4,7 @@
 # SPI Clock Example using hardware SPI with SPIDEV - https://github.com/doceme/py-spidev
 # William B Phelps - wm@usa.net
 # created 16 February 2013
-# updated 24 February 2013 - rewrite piezo/beep
+# updated 25 February 2013 - rewrite piezo/beep
 # ===========================================================================
 
 import RPi.GPIO as GPIO
@@ -197,10 +197,12 @@ def showTime(now):
 			showDate()
 		else:
 			if (digits == 4):
-				timestr = '{:%I%M}'.format(now)
+				#timestr = '{:%I%M}'.format(now)
+				timestr = "{:%I%M}".format(now).lstrip('0').rjust(4)
 				display(0,timestr)
 			else:
-				timestr = '{:  %I%M%S}'.format(now)
+				#timestr = '{:  %I%M%S}'.format(now)
+				timestr = "{:%I%M%S}".format(now).lstrip('0').rjust(8)
 				display(0,timestr)
 				# Toggle dots
 				if (now.second % 2):
