@@ -106,12 +106,19 @@ def tick():
 def setScroll(s):
 	SPI(0x83)  # set scroll mode
 	SPI(s)  # set new value
-def displayChar(ch):
-	SPIwrite(ch)
 def display(pos, str):
 	setScroll(0)
 	setPos(pos)
 	SPIwrite(str)
+	
+def displayJustified(str):
+	digits = getDigits()
+	
+	if (digits == 9):
+		digits = 8
+	
+	display(0, str.rjust(digits))
+	
 def scroll(pos, str, pad=0, dly=0.2):
 	setScroll(1)
 #	d = getDigits()
