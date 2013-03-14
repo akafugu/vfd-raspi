@@ -50,6 +50,18 @@ def getShield():
 	SPI(0x8C) # request shield
 	b = SPI(0)
 	return b
+def getShieldStr():
+	b = getShield()
+	if b == 1:
+		return "IV-6"
+	elif b == 2:
+		return "IV17"
+	elif b == 3:
+		return "IV18"
+	elif b == 4:
+		return "IV22"
+	else:
+		return "none"
 def setDots(d):
 	SPI(0x85)  # dots
 	SPI(d)
@@ -91,10 +103,11 @@ def tick():
 	SPI(0x93)  # tick the speaker
 	b1 = 0
 	time.sleep(0.020) # tick takes time
-
 def setScroll(s):
 	SPI(0x83)  # set scroll mode
 	SPI(s)  # set new value
+def displayChar(ch):
+	SPIwrite(ch)
 def display(pos, str):
 	setScroll(0)
 	setPos(pos)

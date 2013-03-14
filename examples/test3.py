@@ -31,18 +31,21 @@ digits = getDigits() # size of display
 shield = getShield() # shield type
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
+
+if hasattr(GPIO, 'setwarnings'):
+	GPIO.setwarnings(False)
 
 GPIO.setup(S1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(S2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(S3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 	
 print "Raspi VFD test1"
-print "shield " + str(shield) + ", digits " + str(digits)
+print "shield " + getShieldStr() + ", digits " + str(digits)
 print "volume " + str(getVol()) + ", bright " + str(getBrt())
 
 # test beep interaction with SPI
 clear()
+setScroll(0)
 beep(440, 100, False)
 display(0," 440")
 time.sleep(0.2)
