@@ -3,8 +3,8 @@
 # ========================================================
 # VFD Modular Clock - Raspberry PI Editiion
 # 
-# (C) 2013 Akafugu Corporation
 # (C) 2013 William B Phelps - wm@usa.net
+# (C) 2013 Akafugu Corporation
 #
 #
 # This program is free software; you can redistribute it and/or modify it under the
