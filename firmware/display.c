@@ -20,7 +20,6 @@
 
 #define iv17_support
 #define iv6_support
-//#define iv22_support
 #define iv17_6digit_support
 
 void write_vfd_iv6(uint8_t digit, uint8_t segments);
@@ -115,12 +114,6 @@ void detect_shield(void)
 		case(5):  // IV-17 6-digit shield
 			shield = SHIELD_IV17_6D;
 			mpx_limit = digits = 6;
-			break;
-#endif
-#ifdef iv22_support
-		case(6):  // IV-22 shield
-			shield = SHIELD_IV22;
-			mpx_limit = digits = 4;
 			break;
 #endif
 		case(7):  // IV-18 shield (note: same value as no shield - all bits on)
@@ -218,11 +211,6 @@ void display_multiplex(void)
 #ifdef iv17_6digit_support
 			case SHIELD_IV17_6D:
 				write_vfd_iv17_6d(multiplex_counter, calculate_segments_16(data[multiplex_counter]));
-				break;
-#endif
-#ifdef iv22_support
-			case SHIELD_IV22:
-				write_vfd_iv22();
 				break;
 #endif
 			default:
