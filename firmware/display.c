@@ -21,9 +21,11 @@
 #define iv17_support
 #define iv6_support
 //#define iv22_support
+#define iv17_6digit_support
 
 void write_vfd_iv6(uint8_t digit, uint8_t segments);
 void write_vfd_iv17(uint8_t digit, uint16_t segments);
+void write_vfd_iv17_6d(uint8_t digit, uint16_t segments);
 void write_vfd_iv18(uint8_t digit, uint8_t segments);
 
 void write_vfd_8bit(uint8_t data);
@@ -58,6 +60,20 @@ uint16_t dots = 0;
 
 #define sbi(var, mask)   ((var) |= (uint8_t)(1 << mask))
 #define cbi(var, mask)   ((var) &= (uint8_t)~(1 << mask))
+
+// extra output 1 (PA0)
+#define EXTRA1_BIT PA0
+#define EXTRA1_PORT PORTA
+#define EXTRA1_DDR DDRA
+#define EXTRA1_HIGH EXTRA1_PORT |= _BV(EXTRA1_BIT)
+#define EXTRA1_LOW EXTRA1_PORT &= ~(_BV(EXTRA1_BIT))
+
+// extra output 1 (PA1)
+#define EXTRA2_BIT PA1
+#define EXTRA2_PORT PORTA
+#define EXTRA2_DDR DDRA
+#define EXTRA2_HIGH EXTRA2_PORT |= _BV(EXTRA2_BIT)
+#define EXTRA2_LOW EXTRA2_PORT &= ~(_BV(EXTRA2_BIT))
 
 int get_digits(void)
 {
@@ -95,6 +111,12 @@ void detect_shield(void)
 			mpx_limit = digits = 6;
 			break;
 #endif
+#ifdef iv17_6digit_support
+		case(5):  // IV-17 6-digit shield
+			shield = SHIELD_IV17_6D;
+			mpx_limit = digits = 6;
+			break;
+#endif
 #ifdef iv22_support
 		case(6):  // IV-22 shield
 			shield = SHIELD_IV22;
@@ -120,6 +142,11 @@ void display_init(uint8_t brightness)
 	CLOCK_DDR |= _BV(CLOCK_BIT);
 	STROBE_DDR |= _BV(STROBE_BIT);
 	BLANK_DDR |= _BV(BLANK_BIT);
+
+	EXTRA1_DDR |= _BV(EXTRA1_BIT);
+	EXTRA2_DDR |= _BV(EXTRA2_BIT);
+	EXTRA1_LOW;
+	EXTRA2_LOW;
 
 	STROBE_LOW;
 	BLANK_LOW;  // Unblank display
@@ -188,9 +215,14 @@ void display_multiplex(void)
 				else 
 					write_vfd_iv18(multiplex_counter, calculate_segments_7(data[7-multiplex_counter]));
 				break;
+#ifdef iv17_6digit_support
+			case SHIELD_IV17_6D:
+				write_vfd_iv17_6d(multiplex_counter, calculate_segments_16(data[multiplex_counter]));
+				break;
+#endif
 #ifdef iv22_support
 			case SHIELD_IV22:
-				display_multiplex_iv22();
+				write_vfd_iv22();
 				break;
 #endif
 			default:
@@ -291,6 +323,43 @@ void write_vfd_iv17(uint8_t digit, uint16_t segments)
 //	STROBE_LOW;  // Strobe low
 }
 #endif
+
+#ifdef iv17_6digit_support
+// Writes to the HV5812 driver for IV-17
+// HV1~4:  Digit grids, 4 bits
+// HV 5~2: VFD segments, 16-bits
+void write_vfd_iv17_6d(uint8_t digit, uint16_t segments)
+{
+	uint32_t val = 0;
+
+	if (digit == 0) {
+		EXTRA1_LOW;
+		EXTRA2_HIGH;
+		val = ((uint32_t)segments << 4);
+	}
+	else if (digit == 5) {
+		EXTRA1_HIGH;
+		EXTRA2_LOW;
+		val = ((uint32_t)segments << 4);
+	}
+	else {
+		EXTRA1_LOW;
+		EXTRA2_LOW;
+		val = (1 << (digit-1)) | ((uint32_t)segments << 4);
+	}
+
+	//uint32_t val = (1 << digit) | ((uint32_t)segments << 4);
+
+//	write_vfd_8bit(0); // unused upper byte: for HV518P only
+	write_vfd_8bit(val >> 16);
+	write_vfd_8bit(val >> 8);
+	write_vfd_8bit(val);
+
+//	STROBE_HIGH;  // Strobe high
+//	STROBE_LOW;  // Strobe low
+}
+#endif
+
 
 // Writes to the HV5812 driver for IV-18
 // HV1~10:  Digit grids, 10 bits

@@ -112,6 +112,7 @@ enum shield_t {
 	SHIELD_IV17,
 	SHIELD_IV18,
 	SHIELD_IV22,
+	SHIELD_IV17_6D,
 };
 
 #endif // DISPLAY_H_
